@@ -1,0 +1,10 @@
+__pycache__/
+.venv/
+build/
+dist/
+src/
+tests/
+DLP\ Downloader.spec
+poetry.lock
+pyproject.toml
+
