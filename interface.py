@@ -1,5 +1,6 @@
 import flet as ft
 from dlp import Downloader
+from yt_dlp.utils import DownloadError, ExtractorError
 import ctypes
 
 
@@ -14,28 +15,27 @@ class Interface:
     def popup_windows(self, titulo, mensagem):
         ctypes.windll.user32.MessageBoxW(0, mensagem, titulo, 0x40)
 
-    # def fechar_popup(self):
-    #    self.popup.open = False
-    #    self.page.update()
-
-    # def abrir_popup(self, message):
-    #    self.popup = ft.AlertDialog(
-    #        title=ft.Text("Download Completo"),
-    #        content=ft.Text(message),
-    #        actions=[ft.ElevatedButton("OK", on_click=self.fechar_popup)],
-    #    )
-    #    self.page.overlay.append(self.popup)
-    #    self.popup.open = True
-    #    self.page.update()
+    def popup_erro_windows(self, titulo, mensagem):
+        ctypes.windll.user32.MessageBoxW(0, mensagem, titulo, 0x10)
 
     def download_mp4(self):
         url = self.url_input.value
         downloader = Downloader(url)
-        downloader.downloadMP4()
-        self.popup_windows("Download completo", "O vídeo foi baixado com sucesso!")
+        try:
+            downloader.downloadMP4()
+            self.popup_windows("Download completo", "O vídeo foi baixado com sucesso!")
+        except ExtractorError:
+            self.popup_erro_windows("Erro", "Link inválido ou ausente")
+        except DownloadError:
+            self.popup_erro_windows("Erro", "Falha no download")
 
     def download_m4a(self):
         url = self.url_input.value
         downloader = Downloader(url)
-        downloader.downloadM4A()
-        self.popup_windows("Download completo", "O áudio foi baixado com sucesso!")
+        try:
+            downloader.downloadM4A()
+            self.popup_windows("Download completo", "O áudio foi baixado com sucesso!")
+        except ExtractorError:
+            self.popup_erro_windows("Erro", "Link inválido ou ausente")
+        except DownloadError:
+            self.popup_erro_windows("Erro", "Falha no download")
