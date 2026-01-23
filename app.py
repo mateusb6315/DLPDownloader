@@ -18,7 +18,7 @@ def main(page: ft.Page):
             [
                 interface.url_input,
                 ft.Row(
-                    [interface.mp4_button, interface.m4a_button],
+                    [interface.mp4_button, interface.m4a_button, interface.mp3_button],
                     alignment=ft.MainAxisAlignment.CENTER,
                 ),
                 interface.status_text,

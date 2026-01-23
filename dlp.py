@@ -34,10 +34,27 @@ class Downloader:
                     {
                         "key": "FFmpegExtractAudio",
                         "preferredcodec": "m4a",
-                        "preferredquality": "192",
+                        "preferredquality": "320",
                     }
                 ],
             }
         )
         with yt_dlp.YoutubeDL(m4a_opts) as ydl:
+            ydl.download([self.url])
+
+    def downloadMP3(self):
+        mp3_opts = self.ydl_opts.copy()
+        mp3_opts.update(
+            {
+                "format": "bestaudio/best",
+                "postprocessors": [
+                    {
+                        "key": "FFmpegExtractAudio",
+                        "preferredcodec": "mp3",
+                        "preferredquality": "320",
+                    }
+                ],
+            }
+        )
+        with yt_dlp.YoutubeDL(mp3_opts) as ydl:
             ydl.download([self.url])

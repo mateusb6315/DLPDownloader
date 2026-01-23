@@ -7,9 +7,10 @@ import ctypes
 class Interface:
     def __init__(self, page: ft.Page):
         self.page = page
-        self.url_input = ft.TextField(label="Link do vídeo", width=350)
-        self.mp4_button = ft.ElevatedButton("Download MP4", on_click=self.download_mp4)
-        self.m4a_button = ft.ElevatedButton("Download M4A", on_click=self.download_m4a)
+        self.url_input = ft.TextField(label="Link:", width=350)
+        self.mp4_button = ft.ElevatedButton("MP4", on_click=self.download_mp4)
+        self.m4a_button = ft.ElevatedButton("M4A", on_click=self.download_m4a)
+        self.mp3_button = ft.ElevatedButton("MP3", on_click=self.download_mp3)
         self.status_text = ft.Text("")
 
     def popup_windows(self, titulo, mensagem):
@@ -34,6 +35,17 @@ class Interface:
         downloader = Downloader(url)
         try:
             downloader.downloadM4A()
+            self.popup_windows("Download completo", "O áudio foi baixado com sucesso!")
+        except ExtractorError:
+            self.popup_erro_windows("Erro", "Link inválido ou ausente")
+        except DownloadError:
+            self.popup_erro_windows("Erro", "Falha no download")
+
+    def download_mp3(self):
+        url = self.url_input.value
+        downloader = Downloader(url)
+        try:
+            downloader.downloadMP3()
             self.popup_windows("Download completo", "O áudio foi baixado com sucesso!")
         except ExtractorError:
             self.popup_erro_windows("Erro", "Link inválido ou ausente")
