@@ -4,7 +4,6 @@ Um downloader de vídeos e áudios simples, leve e intuitivo, construído com Py
 
 ![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
 ![Flet](https://img.shields.io/badge/Flet-GUI-purple.svg)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
 
 ## 📋 Sobre o Projeto
 
