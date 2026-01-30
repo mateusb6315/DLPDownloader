@@ -1,7 +1,7 @@
 import yt_dlp
 import os
 
-diretorio_padrao = r"J:\Biblioteca"
+diretorio_padrao = os.path.join(os.path.expanduser("~"), "Downloads")
 
 
 class Downloader:
