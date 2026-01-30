@@ -19,13 +19,13 @@ Desenvolvido para usuários que buscam uma alternativa simples e direta aos conv
 | **M4A** | Áudio em alta qualidade (320kbps) - ideal para dispositivos Apple |
 | **MP3** | Áudio universal em alta qualidade (320kbps) |
 
-## 🚀 Por que usar o DLP Downloader?
+## 🚀 Características:
 
 - **Sem anúncios** - Interface limpa e sem distrações
 - **Sem limites** - Baixe quantos vídeos quiser
-- **Offline** - Funciona sem depender de serviços externos instáveis
 - **Rápido** - Downloads diretos sem filas de espera
 - **Simples** - Apenas cole o link e escolha o formato
+- **Intuitivo** - Desenhado para qualquer usuário poder utilizar sem dificuldade
 
 ## 📦 Instalação
 
@@ -135,7 +135,7 @@ O aplicativo exibe mensagens claras para os erros mais comuns:
 
 ## 📄 Licença
 
-Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
+Este projeto é um software de código-aberto sem licença de uso.
 
 ## 🤝 Contribuindo
 
@@ -149,6 +149,3 @@ Contribuições são bem-vindas! Sinta-se à vontade para:
 
 ---
 
-<p align="center">
-  Feito com ❤️ usando Python
-</p>
