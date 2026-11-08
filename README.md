@@ -222,18 +222,17 @@ incompatíveis de outros programas instalados na máquina.
 
 ```text
 releases/
-├── historico.json
-└── DLPDownloader-1.0.0-build.1/
+└── DLPDownloader-1.1.0/
     ├── DLPDownloader.exe
     ├── _internal/
     ├── vendor/
-    ├── README.md
-    └── build.json
+    └── README.md
 ```
 
-A versão vem do `pyproject.toml`; o número do build cresce a partir do histórico e
-das publicações recuperadas. Builds simultâneos são bloqueados e falhas não publicam
-pacotes incompletos. A saída é resumida, com diagnóstico final quando PyInstaller falha.
+Após verificar os pré-requisitos, o script solicita a versão no formato `1.2.0`.
+A pasta de saída usa a versão informada; escolha outra versão ou outro destino se
+já existir uma pasta com o mesmo nome. Compilações simultâneas são bloqueadas e
+falhas não publicam pacotes incompletos. A saída inclui diagnóstico se o PyInstaller falhar.
 
 O build já exige um smoke test de inicialização em modo offscreen, com PATH e dados
 isolados, antes de publicar a pasta. Esse teste verifica o estado PRONTO e não baixa mídia.

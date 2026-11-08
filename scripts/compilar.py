@@ -2,22 +2,20 @@
 
 import argparse
 import importlib.metadata
-import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import threading
-import tomllib
-from datetime import datetime, timezone
 from pathlib import Path
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from dlpdownloader.modelos.erros import ErroAplicacao
-from scripts.comum import RAIZ, bloqueio, ler_historico, status
+from scripts.comum import RAIZ, bloqueio, status
 from scripts.validar_pacote import validar_pacote
 
 
@@ -88,19 +86,14 @@ def ambiente_compilacao() -> dict[str, str]:
     return ambiente
 
 
-def reconciliar(destino: Path, historico: list[dict]) -> list[dict]:
-    """Recupera publicação concluída cuja gravação do histórico foi interrompida."""
-    conhecidos = {item["numero"] for item in historico}
-    for pasta in destino.glob("DLPDownloader-*"):
-        if not (pasta / "DLPDownloader.exe").is_file() or not (pasta / "build.json").is_file():
-            continue
-        dados = json.loads((pasta / "build.json").read_text(encoding="utf-8"))
-        if type(dados.get("numero")) is not int or dados["numero"] < 1:
-            raise ValueError(f"Metadados de compilação inválidos: {pasta.name}")
-        if dados["numero"] not in conhecidos:
-            historico.append(dados)
-            conhecidos.add(dados["numero"])
-    return sorted(historico, key=lambda item: item["numero"])
+def solicitar_versao() -> str:
+    """Solicita uma versão com três componentes numéricos."""
+    mensagem = "Digite a próxima versão: "
+    while True:
+        versao = input(mensagem).strip()
+        if re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", versao):
+            return versao
+        mensagem = "Formato inválido. Tente novamente: "
 
 
 def compilar(
@@ -109,8 +102,7 @@ def compilar(
     executar=subprocess.run,
     validar_ferramentas=None,
 ) -> Path:
-    """Publica staging completo; versões históricas nunca são sobrescritas."""
-    from dlpdownloader.servicos.arquivos import gravar_json
+    """Compila e publica a versão informada pelo usuário."""
     from dlpdownloader.servicos.dependencias import verificar
 
     destino = destino or raiz / "releases"
@@ -122,20 +114,9 @@ def compilar(
     (validar_ferramentas or verificar)(raiz, threading.Event())
     if not (raiz / "vendor/installed.json").is_file():
         raise RuntimeError("Prepare as ferramentas antes de compilar.")
-    versao = tomllib.loads((raiz / "pyproject.toml").read_text(encoding="utf-8"))["project"][
-        "version"
-    ]
+    versao = solicitar_versao()
     with bloqueio(destino / ".compilacao.lock"):
-        status("Verificando histórico e versões existentes…")
-        arquivo_historico = destino / "historico.json"
-        original = ler_historico(arquivo_historico)
-        historico = reconciliar(destino, list(original))
-        if historico != original:
-            gravar_json(arquivo_historico, historico)
-            status(f"Histórico recuperado: {len(historico)} versão(ões).")
-        numero = max((item["numero"] for item in historico), default=0) + 1
-        final = destino / f"DLPDownloader-{versao}-build.{numero}"
-        status(f"Próxima versão: {versao}, compilação {numero}.")
+        final = destino / f"DLPDownloader-{versao}"
         with tempfile.TemporaryDirectory(prefix=".compilacao-", dir=destino) as pasta:
             temporario = Path(pasta)
             status("Fazendo a compilação…")
@@ -149,19 +130,8 @@ def compilar(
             shutil.copy2(raiz / "README.md", pacote / "README.md")
             status("Validando inicialização do pacote sem ferramentas globais…")
             validar_pacote(pacote, temporario / "dados-smoke")
-            dados = {
-                "numero": numero,
-                "versao": versao,
-                "data": datetime.now(timezone.utc).isoformat(),
-                "pasta": final.name,
-                "python": sys.version.split()[0],
-                "pyinstaller": importlib.metadata.version("PyInstaller"),
-            }
-            gravar_json(pacote / "build.json", dados)
             status(f"Publicando {final.name}…")
             pacote.rename(final)
-        status("Registrando versão no histórico…")
-        gravar_json(arquivo_historico, [*historico, dados])
     status("Compilação concluída.")
     return final
 
@@ -178,6 +148,7 @@ def main() -> int:
         return 130
     except (
         OSError,
+        EOFError,
         ValueError,
         RuntimeError,
         subprocess.CalledProcessError,
