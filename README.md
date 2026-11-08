@@ -4,7 +4,7 @@ Aplicativo desktop para baixar um vídeo ou áudio por vez, escolher o formato d
 e salvar em uma pasta de sua preferência. A versão **1.3.0** é destinada a
 **Windows de 64 bits** e inclui as ferramentas necessárias para funcionar.
 
-## Novidades da versão 1.3.0
+## Novidades recentes
 
 - Pacote menor: a pasta do aplicativo passou de aproximadamente **530 MB para 360 MB**,
   uma redução de cerca de **170 MB (32%)**. O arquivo compactado para download tem cerca
@@ -17,10 +17,6 @@ e salvar em uma pasta de sua preferência. A versão **1.3.0** é destinada a
 
 Os oito formatos de saída continuam disponíveis. A versão usa uma variante menor do
 FFmpeg, que pode não reconhecer alguns formatos de origem menos comuns.
-
-A consulta de atualizações, introduzida nas versões 1.2.x, continua disponível no menu
-**Opções** e ao abrir o aplicativo. Na distribuição 1.3.0, a versão é incorporada ao
-executável: não é necessário manter um arquivo `version.json` ao lado dele.
 
 ## Baixar e abrir o aplicativo
 
