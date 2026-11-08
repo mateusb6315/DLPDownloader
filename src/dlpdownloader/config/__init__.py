@@ -1,0 +1,1 @@
+"""Configurações declarativas do aplicativo."""

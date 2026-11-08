@@ -1,0 +1,26 @@
+{
+  "plataforma": "windows-x86_64",
+  "ferramentas": [
+    {
+      "nome": "yt-dlp",
+      "versao": "2026.10.26",
+      "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.10.26/yt-dlp.exe",
+      "sha256": "f5389d3698ecde4ef06f4e6b1ce0294fe9ac1396228c8990b8d3416d6d177a7d",
+      "arquivos": {"yt-dlp.exe": "yt-dlp/yt-dlp.exe"}
+    },
+    {
+      "nome": "ffmpeg",
+      "versao": "autobuild-2026-11-06-20-26",
+      "url": "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/autobuild-2026-11-06-20-26/ffmpeg-N-128544-ga6c7695959-win64-gpl.zip",
+      "sha256": "ec968f08c5f771fe230b8926295f18cf083779daaa32979c36e26110027d20a2",
+      "arquivos": {"ffmpeg.exe": "ffmpeg/ffmpeg.exe", "ffprobe.exe": "ffmpeg/ffprobe.exe"}
+    },
+    {
+      "nome": "deno",
+      "versao": "v2.9.8",
+      "url": "https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-pc-windows-msvc.zip",
+      "sha256": "cba84b26e0df5ae7f74fc66b86a95b866872a86292ebd84fa1e959927edd93bf",
+      "arquivos": {"deno.exe": "deno/deno.exe"}
+    }
+  ]
+}

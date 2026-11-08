@@ -1,18 +1,39 @@
 [project]
 name = "dlpdownloader"
-version = "0.1.0"
-description = ""
+version = "1.0.0"
+description = "Downloader desktop MVC com PyQt6 e ferramentas portateis"
 authors = [
-    {name = "Your Name",email = "you@example.com"}
+    {name = "Mateus"}
 ]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.15"
 dependencies = [
-    "flet (>=0.80.2,<0.81.0)",
-    "yt-dlp (>=2025.12.8,<2026.0.0)",
-    "pillow (>=12.1.0,<13.0.0)",
     "pyqt6 (>=6.10.2,<7.0.0)"
 ]
+
+[project.gui-scripts]
+dlpdownloader = "dlpdownloader.aplicacao:main"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=9,<10"
+pytest-qt = ">=4.5,<5"
+ruff = ">=0.17,<0.18"
+pyinstaller = ">=6.18,<7"
+pillow = ">=12.1,<13"
+build = ">=1.4,<2"
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]
+qt_api = "pyqt6"
+markers = ["externo: exige ferramentas portateis ou Windows real"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
 
 [tool.poetry]
 packages = [{include = "dlpdownloader", from = "src"}]

@@ -1,4 +1,17 @@
 __pycache__/
 .venv/
 .vscode/
+docs/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+releases/
+*.spec
+vendor/**/*.exe
+vendor/.cache/
+vendor/installed.json
+.ferramentas-*/
+*.log
 
