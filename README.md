@@ -12,7 +12,7 @@ FFmpeg/FFprobe e Deno portáteis** no processamento, organizados em arquitetura 
 - Diretório escolhido pelo usuário e restaurado ao reabrir o aplicativo.
 - Popup de progresso por faixa, com bytes, velocidade e ETA quando disponíveis.
 - Interface responsiva e cancelamento dos processos da operação.
-- Preservação de arquivos existentes e publicação somente após processamento.
+- Publicação após o processamento e confirmação antes de substituir arquivos existentes.
 - Ícone baseado em `flet.png`, independente do framework Flet.
 
 O programa processa um item por operação e desativa playlists. Não implementa fila,
@@ -89,7 +89,7 @@ verificação. Nenhum download de atualização ocorre ao abrir a GUI.
 2. Cole um link HTTP ou HTTPS.
 3. Escolha o formato e, quando disponível, o bitrate.
 4. Use **Escolher pasta** para alterar o destino.
-5. Clique em **Baixar** e acompanhe o popup até a confirmação do caminho final.
+5. Clique em **Baixar** e acompanhe o popup até a mensagem de conclusão e o caminho final.
 6. Para interromper, use **Cancelar**.
 
 A pasta é salva imediatamente após uma seleção válida. Cancelar o seletor preserva
@@ -98,7 +98,9 @@ silenciosa do destino.
 
 Os arquivos são preparados em uma subpasta `.dlp-*` dentro do destino e publicados
 quando o processamento termina. Os nomes incluem título e ID; conversões com bitrate
-explícito incluem também o bitrate. Arquivos existentes são preservados. As pastas
+explícito incluem também o bitrate. Se já existir um arquivo com o mesmo nome, ao fim
+do processamento o aplicativo pergunta se deseja substituí-lo. Escolha **Sim** para
+substituir o arquivo ou **Não** para manter o original e encerrar a operação. As pastas
 temporárias são removidas após sucesso, erro ou cancelamento tratado; quedas de energia
 ou término forçado pelo sistema podem deixar temporários para remoção manual.
 
@@ -273,7 +275,7 @@ não há force-push ou resolução automática de conflitos.
 | Falha de extração | Verifique link, conexão, acesso e compatibilidade do yt-dlp fixado |
 | MP4 indisponível | Experimente MKV se atender à necessidade; o perfil não muda sozinho |
 | Falha ao gravar | Verifique pasta existente, permissão e espaço livre |
-| Arquivo já existe | O original foi preservado; use outra pasta ou mova o anterior |
+| Arquivo já existe | Escolha **Sim** para substituí-lo ou **Não** para manter o original |
 | Preferências inválidas | Escolha a pasta novamente para gravar uma configuração válida |
 | Erro inesperado | Consulte o log em `%LOCALAPPDATA%/DLPDownloader/` e relate o cenário |
 
