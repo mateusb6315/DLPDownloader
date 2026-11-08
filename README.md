@@ -1,8 +1,47 @@
 # DLP Downloader
 
 Aplicativo desktop para baixar um vídeo ou áudio por vez, escolher o formato de saída
-e salvar em uma pasta de sua preferência. Usa **PyQt6** na interface e **yt-dlp,
-FFmpeg/FFprobe e Deno portáteis** no processamento, organizados em arquitetura MVC.
+e salvar em uma pasta de sua preferência. A versão **1.3.0** é destinada a
+**Windows de 64 bits** e inclui as ferramentas necessárias para funcionar.
+
+## Novidades da versão 1.3.0
+
+- Pacote menor: a pasta do aplicativo passou de aproximadamente **530 MB para 360 MB**,
+  uma redução de cerca de **170 MB (32%)**. O arquivo compactado para download tem cerca
+  de **133 MB**. Esses valores são os registrados nas [notas da versão](changelog/1.3.0.md)
+  e podem variar entre compilações; reserve espaço também para extração e downloads.
+- Reparo das ferramentas: se arquivos necessários estiverem ausentes ou alterados,
+  o aplicativo oferece abrir o reparador em um terminal.
+- Organização dos arquivos internos na pasta `lib`, com as ferramentas em `vendor`.
+- Mensagens revisadas e novas janelas de aviso e orientação.
+
+Os oito formatos de saída continuam disponíveis. A versão usa uma variante menor do
+FFmpeg, que pode não reconhecer alguns formatos de origem menos comuns.
+
+A consulta de atualizações, introduzida nas versões 1.2.x, continua disponível no menu
+**Opções** e ao abrir o aplicativo. Na distribuição 1.3.0, a versão é incorporada ao
+executável: não é necessário manter um arquivo `version.json` ao lado dele.
+
+## Baixar e abrir o aplicativo
+
+1. Acesse a [página de releases](https://github.com/mateusb6315/DLPDownloader/releases)
+   e escolha o pacote Windows da versão desejada.
+2. Extraia **todo o conteúdo** do arquivo compactado para uma pasta em que você possa
+   gravar arquivos. Não execute o programa de dentro do ZIP.
+3. Abra `DLPDownloader.exe` e aguarde a verificação das ferramentas.
+
+Não é necessário instalar Python, Qt ou as ferramentas de mídia separadamente.
+Mantenha `DLPDownloader.exe`, `lib` e `vendor` juntos. Para mover o aplicativo, mova
+sua pasta inteira. A conexão com a internet é necessária para baixar conteúdo,
+consultar atualizações e reparar ferramentas.
+
+```text
+DLPDownloader-1.3.0/
+├── DLPDownloader.exe        # abra este arquivo
+├── lib/                    # arquivos internos; mantenha a pasta completa
+├── vendor/                 # ferramentas de mídia e repair.exe
+└── README.md
+```
 
 ## Recursos
 
@@ -10,15 +49,137 @@ FFmpeg/FFprobe e Deno portáteis** no processamento, organizados em arquitetura 
 - Áudio original, MP3, M4A/AAC, Opus, FLAC e WAV PCM.
 - Bitrate selecionável nos perfis de conversão correspondentes.
 - Diretório escolhido pelo usuário e restaurado ao reabrir o aplicativo.
-- Popup de progresso por faixa, com bytes, velocidade e ETA quando disponíveis.
+- Janela de progresso por faixa, com tamanho baixado, velocidade e tempo restante quando disponíveis.
 - Interface responsiva e cancelamento dos processos da operação.
-- Publicação após o processamento e confirmação antes de substituir arquivos existentes.
-- Ícone baseado em `flet.png`, independente do framework Flet.
+- Arquivo final salvo após o processamento, com confirmação antes de substituir outro de mesmo nome.
+- Consulta de novas versões pelo menu **Opções → Procurar atualizações**.
+- Verificação das ferramentas e opção de reparo quando houver arquivos ausentes ou alterados.
 
-O programa processa um item por operação e desativa playlists. Não implementa fila,
-login, cookies ou atualização automática das ferramentas.
+O programa baixa um item por vez, sem fila ou playlists. A interface não oferece
+login nem importação de cookies para conteúdo que exija autenticação.
 
-## Requisitos
+## Como usar
+
+1. Abra o aplicativo e aguarde a verificação das ferramentas.
+2. Cole um link HTTP ou HTTPS.
+3. Escolha o formato e, quando disponível, o bitrate.
+4. Use **Escolher pasta** para alterar o destino.
+5. Clique em **Baixar** e acompanhe a janela de progresso até a mensagem de conclusão e o caminho final.
+6. Para interromper, use **Cancelar**.
+
+A pasta é salva imediatamente após uma seleção válida. Cancelar o seletor preserva
+o valor anterior. Se a pasta salva estiver indisponível, escolha outra: não há mudança
+silenciosa do destino.
+
+Os arquivos são preparados em uma subpasta `.dlp-*` dentro do destino e publicados
+quando o processamento termina. Os nomes incluem título e ID; conversões com bitrate
+explícito incluem também o bitrate. Se já existir um arquivo com o mesmo nome, ao fim
+do processamento o aplicativo pergunta se deseja substituí-lo. Escolha **Sim** para
+substituir o arquivo ou **Não** para manter o original e encerrar a operação. As pastas
+temporárias são removidas após sucesso, erro ou cancelamento tratado; quedas de energia
+ou término forçado pelo sistema podem deixar temporários para remoção manual.
+
+### Reparar ferramentas portáteis
+
+Ao detectar ferramentas ausentes ou danificadas, o aplicativo pergunta:
+
+> Algumas ferramentas foram danificadas ou estão ausentes. Deseja iniciar o script de reparo dos arquivos?
+
+- **Sim:** o DLP Downloader fecha e abre o reparador em um terminal separado.
+  Aguarde a mensagem de conclusão, pressione qualquer tecla para fechar o terminal
+  e abra o DLP Downloader novamente.
+- **Não:** aparece uma orientação para fechar o aplicativo e executar `repair.exe`
+  na pasta `vendor`. Os downloads ficam indisponíveis até resolver o problema.
+
+Para iniciar o reparo manualmente, feche todas as janelas do DLP Downloader e abra
+`vendor/repair.exe` pelo Explorador de Arquivos. Também é possível usar o PowerShell,
+na pasta do aplicativo:
+
+```powershell
+.\vendor\repair.exe
+```
+
+O reparador exige internet e permissão de escrita na pasta do aplicativo. Ele baixa
+novamente todas as ferramentas declaradas, verifica sua integridade e substitui os
+arquivos de ferramentas e seus metadados sem pedir confirmação individual. Mantenha
+o aplicativo fechado até o fim; o reparador impede a abertura durante a operação.
+
+O reparo cobre as ferramentas de `vendor`; ele não restaura `lib`, o executável
+principal nem o próprio `repair.exe`. Se esses arquivos estiverem ausentes ou
+corrompidos, extraia novamente o pacote completo. Se o reparo falhar, leia a mensagem
+no terminal e confira a conexão e a permissão de escrita antes de tentar novamente.
+
+### Procurar atualizações
+
+Abra **Opções → Procurar atualizações**, no canto superior direito. Se houver uma
+release estável mais recente, **Baixar agora** abre a página da versão no navegador;
+**Deixar para depois** fecha o aviso. O aplicativo também faz essa consulta ao iniciar.
+A consulta exige internet e não instala nem substitui arquivos automaticamente.
+
+Para atualizar, baixe o novo pacote, feche o aplicativo e extraia a pasta completa da
+nova versão. Sua pasta de destino salva fica fora da instalação e continua disponível.
+Em uma beta, a release estável da mesma versão também é oferecida. A execução pelo
+código-fonte não tem versão de distribuição para essa consulta.
+
+### Perfis de saída
+
+| Perfil | Seleção/processamento | Bitrate |
+| --- | --- | --- |
+| MP4 | Melhor vídeo MP4 + áudio M4A; se necessário, usa MP4 com áudio integrado | Da origem |
+| MKV | Melhor vídeo + melhor áudio disponíveis, remuxados para MKV | Da origem |
+| Áudio original | Melhor faixa, extraída sem conversão quando possível | Da origem |
+| MP3 | Conversão com `libmp3lame` | 128, 192, 256 ou 320 kb/s |
+| M4A/AAC | Original ou conversão AAC | Original, 128, 192 ou 256 kb/s |
+| Opus | Conversão com `libopus` | 96, 128, 160 ou 192 kb/s |
+| FLAC | Compressão de áudio sem perdas | Não selecionável |
+| WAV PCM | Áudio sem compressão | Não selecionável |
+
+FLAC/WAV não recuperam detalhes perdidos em uma fonte AAC/Opus. Bitrate maior também
+não aumenta a fidelidade da origem. O bitrate escolhido é um parâmetro de codificação;
+o valor medido pode variar conforme codec, duração e modo de codificação.
+
+MP4 é um contêiner, não uma promessa de compatibilidade com todos os players. Se não
+existir uma combinação adequada ao perfil, o download falha sem trocar o formato.
+A seleção é dinâmica: IDs como `299+140` não são fixados no código.
+[Seleção de formatos do yt-dlp](https://github.com/yt-dlp/yt-dlp#format-selection).
+
+### Progresso e encerramento
+
+A janela de progresso acompanha os dados enviados pela ferramenta de download.
+A barra representa a faixa atual e pode reiniciar
+quando o áudio começa após o vídeo; o rótulo identifica a faixa. Total estimado é
+sinalizado. Sem total conhecido, ou durante junção/conversão, a barra indica atividade sem mostrar uma porcentagem.
+Não há simulação de percentual de processamento do FFmpeg.
+
+Cancelar pode levar alguns segundos para encerrar processos e liberar os arquivos.
+Fechar a janela de progresso ou pressionar Escape também solicita cancelamento. Fechar a janela
+principal durante o trabalho pede confirmação e aguarda a liberação antes de sair.
+
+## Preferências e logs
+
+O aplicativo lembra a pasta escolhida para salvar seus downloads. Essa preferência e
+os registros usados para investigar erros ficam fora da pasta do aplicativo. Para
+encontrá-los, cole `%LOCALAPPDATA%\DLPDownloader` na barra do Explorador de Arquivos:
+
+```text
+%LOCALAPPDATA%/DLPDownloader/
+├── config.json
+├── aplicacao.log
+└── aplicacao.log.1 …
+```
+
+O arquivo `config.json` guarda a pasta escolhida. Se essa configuração estiver inválida,
+escolha a pasta novamente no aplicativo para salvá-la. Os arquivos `aplicacao.log`
+registram informações para diagnóstico e são renovados automaticamente para limitar
+o espaço ocupado. A saída completa do yt-dlp não é gravada, pois pode conter links
+assinados ou outros dados sensíveis.
+
+## Desenvolvimento
+
+As seções a seguir explicam como preparar e manter o código-fonte. Para usar o
+aplicativo pronto, siga [Baixar e abrir o aplicativo](#baixar-e-abrir-o-aplicativo).
+
+### Requisitos
 
 O alvo de distribuição é **Windows x86-64**. O pacote desktop completo dispensa
 Python, Qt, yt-dlp, FFmpeg e Deno instalados separadamente no computador de destino.
@@ -31,11 +192,10 @@ Python, Qt, yt-dlp, FFmpeg e Deno instalados separadamente no computador de dest
 | GitHub CLI (`gh`) | Opcional, para PR e merge remoto pelos scripts |
 | Internet | Preparação das ferramentas e download dos conteúdos |
 
-PyQt6 é a dependência de execução Python. PyInstaller, Pillow, pytest, pytest-qt,
-Ruff e build ficam no grupo de desenvolvimento. Flet e a biblioteca Python `yt-dlp`
-não são dependências do aplicativo refatorado.
+PyQt6 e PyYAML são as dependências de execução Python. PyInstaller, Pillow, pytest, pytest-qt,
+Ruff e build ficam no grupo de desenvolvimento. O processamento usa os executáveis portáteis, sem depender da biblioteca Python `yt-dlp`.
 
-## Instalação e execução
+### Preparar e executar o código-fonte
 
 Em PowerShell, com o launcher `py` e Python 3.13 instalado:
 
@@ -83,82 +243,14 @@ YouTube; o executável oficial do yt-dlp inclui os scripts EJS correspondentes.
 
 Para atualizar, revise versões, URLs e checksums no manifesto, prepare novamente e
 rode a integração real. Falha de checksum interrompe a preparação; não desative essa
-verificação. Nenhum download de atualização ocorre ao abrir a GUI.
-
-## Como usar
-
-1. Abra o aplicativo e aguarde a verificação das ferramentas.
-2. Cole um link HTTP ou HTTPS.
-3. Escolha o formato e, quando disponível, o bitrate.
-4. Use **Escolher pasta** para alterar o destino.
-5. Clique em **Baixar** e acompanhe o popup até a mensagem de conclusão e o caminho final.
-6. Para interromper, use **Cancelar**.
-
-A pasta é salva imediatamente após uma seleção válida. Cancelar o seletor preserva
-o valor anterior. Se a pasta salva estiver indisponível, escolha outra: não há mudança
-silenciosa do destino.
-
-Os arquivos são preparados em uma subpasta `.dlp-*` dentro do destino e publicados
-quando o processamento termina. Os nomes incluem título e ID; conversões com bitrate
-explícito incluem também o bitrate. Se já existir um arquivo com o mesmo nome, ao fim
-do processamento o aplicativo pergunta se deseja substituí-lo. Escolha **Sim** para
-substituir o arquivo ou **Não** para manter o original e encerrar a operação. As pastas
-temporárias são removidas após sucesso, erro ou cancelamento tratado; quedas de energia
-ou término forçado pelo sistema podem deixar temporários para remoção manual.
-
-### Perfis de saída
-
-| Perfil | Seleção/processamento | Bitrate |
-| --- | --- | --- |
-| MP4 | Melhor vídeo MP4 + áudio M4A; fallback para MP4 combinado | Da origem |
-| MKV | Melhor vídeo + melhor áudio disponíveis, remuxados para MKV | Da origem |
-| Áudio original | Melhor faixa, extraída sem conversão quando possível | Da origem |
-| MP3 | Conversão com `libmp3lame` | 128, 192, 256 ou 320 kb/s |
-| M4A/AAC | Original ou conversão AAC | Original, 128, 192 ou 256 kb/s |
-| Opus | Conversão com `libopus` | 96, 128, 160 ou 192 kb/s |
-| FLAC | Codec lossless | Não selecionável |
-| WAV PCM | Sem compressão perceptual | Não selecionável |
-
-FLAC/WAV não recuperam detalhes perdidos em uma fonte AAC/Opus. Bitrate maior também
-não aumenta a fidelidade da origem. O bitrate escolhido é um parâmetro de codificação;
-o valor medido pode variar conforme codec, duração e modo de codificação.
-
-MP4 é um contêiner, não uma promessa de compatibilidade com todos os players. Se não
-existir uma combinação adequada ao perfil, o download falha sem trocar o formato.
-A seleção é dinâmica: IDs como `299+140` não são fixados no código.
-[Seleção de formatos do yt-dlp](https://github.com/yt-dlp/yt-dlp#format-selection).
-
-### Progresso e encerramento
-
-O popup usa eventos JSON do yt-dlp. A barra representa a faixa atual e pode reiniciar
-quando o áudio começa após o vídeo; o rótulo identifica a faixa. Total estimado é
-sinalizado. Sem total conhecido, ou durante junção/conversão, a barra é indeterminada.
-Não há simulação de percentual de processamento do FFmpeg.
-
-Cancelar pode levar alguns segundos para encerrar processos e liberar os arquivos.
-Fechar o popup ou pressionar Escape também solicita cancelamento. Fechar a janela
-principal durante o trabalho pede confirmação e aguarda a liberação antes de sair.
-
-## Preferências e logs
-
-Os dados por usuário ficam fora da pasta de instalação:
-
-```text
-%LOCALAPPDATA%/DLPDownloader/
-├── config.json
-├── aplicacao.log
-└── aplicacao.log.1 …
-```
-
-As preferências têm esquema versionado e gravação atômica. JSON inválido é preservado
-até uma nova pasta ser salva. Os logs têm rotação; a saída bruta do yt-dlp não é
-registrada porque pode conter links assinados ou outros dados sensíveis.
+verificação. A abertura da interface consulta releases, mas não baixa atualizações das ferramentas.
 
 ## Arquitetura
 
 ```text
 main.py / python -m dlpdownloader
 └── aplicacao.py                       composição e logging
+    ├── ControladorAtualizacoes       consulta de releases em segundo plano
     └── ControladorDownload
         ├── modelos/                  dados e regras puras
         ├── servicos/                 arquivos e processos
@@ -211,17 +303,28 @@ distribuição desktop como artefato.
 
 ## Compilação
 
-Com dependências e ferramentas preparadas:
+Para desenvolvimento e testes locais, com dependências e ferramentas preparadas:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\compilar_beta.py --versao 1.3.1_beta1
+```
+
+O nome acima é um exemplo da convenção `<próxima versão>_beta<número>`. O script aceita
+nomes livres válidos no Windows e publica em `releases/beta/`, sem relatório de produção
+nem integração com o GitHub. Ele reutiliza as validações do pacote de produção.
+
+Para uma distribuição de produção:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\compilar.py
+.\.venv\Scripts\python.exe scripts\compilar.py --versao 1.3.0 --zip
 # Opcional: escolher onde publicar a distribuição local
 .\.venv\Scripts\python.exe scripts\compilar.py --destino C:\Pacotes\DLPDownloader
 ```
 
 O script chama PyInstaller diretamente e não lê um `.spec` do repositório. O `.spec`
 intermediário gerado pelo próprio PyInstaller fica no staging temporário e é descartado.
-Todos os parâmetros ficam em `scripts/compilar.py`: `onedir`, sem console, strip ou UPX.
+A configuração do aplicativo principal fica em `scripts/compilar.py`: `onedir`, sem console, strip ou UPX.
 O processo usa um `PATH` limitado ao Python, Qt e Windows, evitando capturar DLLs
 incompatíveis de outros programas instalados na máquina.
 
@@ -234,14 +337,22 @@ releases/
     └── README.md
 ```
 
-Após verificar os pré-requisitos, o script solicita a versão no formato `1.2.0`.
-A pasta de saída usa a versão informada; escolha outra versão ou outro destino se
-já existir uma pasta com o mesmo nome. Compilações simultâneas são bloqueadas e
+Após verificar os pré-requisitos, o script solicita a versão no formato `1.3.0`.
+A versão é incorporada ao executável e nomeia a pasta de saída; o script não altera
+`pyproject.toml`. Ao lado da pasta é gerado um relatório `<pacote>.tamanho.json`, com
+tamanhos em bytes e versões do ambiente. `--zip` gera também o arquivo compactado.
+Escolha outra versão ou outro destino se já existir uma pasta com o mesmo nome. Compilações simultâneas são bloqueadas e
 falhas não publicam pacotes incompletos. A saída inclui diagnóstico se o PyInstaller falhar.
 
 O build já exige um smoke test de inicialização em modo offscreen, com PATH e dados
-isolados, antes de publicar a pasta. Esse teste verifica o estado PRONTO e os perfis com mídia sintética servida localmente.
-Para repetir em um pacote existente, use `scripts/validar_pacote.py` com o caminho da pasta.
+isolados, antes de publicar a pasta. Esse teste verifica o estado PRONTO e os oito perfis com mídia sintética servida
+localmente, incluindo cancelamento e recusa de substituição. Não acessa a internet nem
+depende de ferramentas globais.
+Para repetir em um pacote existente:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\validar_pacote.py releases\DLPDownloader-1.3.0
+```
 
 Distribua **a pasta inteira**. Valide em Windows sem Python ou ferramentas globais,
 incluindo download, junção, cancelamento, destino com espaços e persistência.
@@ -274,7 +385,10 @@ não há force-push ou resolução automática de conflitos.
 
 | Situação | Ação |
 | --- | --- |
-| Baixar indisponível na abertura | Prepare as ferramentas e reinicie; confira hashes e manifesto |
+| Ferramentas ausentes ou danificadas | Aceite o reparo oferecido ou feche o aplicativo e execute `vendor/repair.exe` |
+| Arquivos de `lib` ou reparador ausentes | Extraia novamente o pacote completo |
+| Consulta de atualização falhou | Confira a conexão e tente novamente pelo menu Opções |
+| Formato de origem pouco comum | A variante menor do FFmpeg pode não reconhecê-lo; tente uma origem compatível |
 | Falha de extração | Verifique link, conexão, acesso e compatibilidade do yt-dlp fixado |
 | MP4 indisponível | Experimente MKV se atender à necessidade; o perfil não muda sozinho |
 | Falha ao gravar | Verifique pasta existente, permissão e espaço livre |
@@ -305,52 +419,12 @@ um clone fica neste README e no [catálogo de scripts](scripts/README.md).
 ## Licenças
 
 Não existe um arquivo de licença para o código do aplicativo neste repositório.
-Nenhuma licença foi presumida ou criada na refatoração.
+Consulte o responsável pelo projeto sobre permissões de uso e redistribuição do código.
 
 Terceiros têm termos próprios. Preserve [vendor/licenses/](vendor/licenses/), incluindo
 os avisos obtidos na preparação, e confira obrigações de redistribuição dos executáveis
 e disponibilização das fontes correspondentes.
 
-### Distribuição 1.3.0
-
-FFmpeg e FFprobe usam bibliotecas compartilhadas LGPL em `vendor/ffmpeg`, incluindo as
-sete DLLs declaradas em `vendor/manifest.json`. Deno continua incluído. Distribua a pasta
-inteira: apagar ou trocar DLLs impede a verificação de integridade. Essa variante remove
-alguns recursos de formatos raros; não altera os perfis de saída oferecidos pelo aplicativo.
-
-O build também aceita execução sem pergunta e compactação opcional:
-
-```powershell
-.\.venv\Scripts\python.exe scripts\compilar.py --versao 1.3.0 --zip
-```
-
-Uma entrega existente é recusada antes de compilar. A pasta `lib` contém Python, Qt e
-recursos; as bibliotecas Qt não foram reduzidas. Ao lado da pasta publicada ficam o
-relatório de tamanho em bytes, versões do ambiente e, com `--zip`, o arquivo compactado.
-Antes de publicar, o build exige inicialização e testes de mídia local dos oito perfis no
-executável compilado, incluindo recusa de substituição e cancelamento. Não usa a internet
-nesses testes nem depende de FFmpeg/Python instalados globalmente.
-
-### Reparar ferramentas portáteis
-
-Se o aplicativo informar que as ferramentas estão indisponíveis, ele oferecerá iniciar o
-reparo em um terminal. Também é possível fechar o DLP Downloader e executar
-`vendor/repair.exe` em um terminal aberto na pasta do aplicativo:
-
-```powershell
-.\vendor\repair.exe
-```
-
-O reparador
-precisa de acesso à internet e permissão de escrita na pasta do aplicativo. Ele baixa e
-verifica novamente as ferramentas, restaura o manifesto e substitui os arquivos necessários
-sem pedir confirmação. Aguarde a mensagem de conclusão antes de reabrir o aplicativo.
-O próprio `repair.exe` precisa estar presente para executar o reparo; se estiver ausente ou
-danificado, extraia novamente o pacote completo em uma pasta de sua escolha.
-
-### Atualizações do aplicativo
-
-O menu **Opções → Procurar atualizações** verifica a versão estável mais recente no GitHub.
-O aplicativo também faz essa consulta silenciosamente ao abrir; o usuário decide se deseja
-abrir a página da nova versão no navegador. A consulta requer internet e não instala nada
-automaticamente. Em uma beta, a release estável da mesma versão também é oferecida.
+FFmpeg e FFprobe usam uma build Windows x64 LGPL compartilhada com sete DLLs em
+`vendor/ffmpeg`. Deno permanece incluído. Preserve também os avisos de terceiros
+fornecidos com o pacote.
