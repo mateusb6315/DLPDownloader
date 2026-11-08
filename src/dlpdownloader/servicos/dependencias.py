@@ -1,12 +1,12 @@
 """Localização e verificação das ferramentas descritas no manifesto."""
 
-import hashlib
 import json
 import threading
 from dataclasses import dataclass
 from pathlib import Path
 
 from dlpdownloader.modelos.erros import ErroDependencia
+from dlpdownloader.servicos.manifesto import arquivos_previstos, ler_manifesto, sha256
 from dlpdownloader.servicos.processos import executar
 
 
@@ -31,7 +31,7 @@ def localizar(raiz: Path) -> Ferramentas:
     )
     for caminho in vars(ferramentas).values():
         if not caminho.is_file():
-            raise ErroDependencia(f"Ferramenta ausente: {caminho.name}. Prepare vendor/.")
+            raise ErroDependencia(f"Ferramenta ausente: {caminho.name}. Execute vendor/repair.exe.")
     return ferramentas
 
 
@@ -40,16 +40,23 @@ def verificar(raiz: Path, cancelamento: threading.Event) -> Ferramentas:
     ferramentas = localizar(raiz)
     try:
         instaladas = json.loads((raiz / "vendor/installed.json").read_text(encoding="utf-8"))
-        manifesto = hashlib.sha256((raiz / "vendor/manifest.json").read_bytes()).hexdigest()
+        contrato = ler_manifesto(raiz / "vendor")
+        manifesto = sha256(raiz / "vendor/manifest.json", cancelamento)
         if instaladas["manifesto_sha256"] != manifesto:
-            raise ErroDependencia("O manifesto mudou. Prepare vendor/ novamente.")
-        for caminho in vars(ferramentas).values():
-            relativo = caminho.relative_to(raiz / "vendor").as_posix()
-            esperado = instaladas["arquivos"][relativo]
-            with caminho.open("rb") as arquivo:
-                real = hashlib.file_digest(arquivo, "sha256").hexdigest()
-            if real != esperado:
-                raise ErroDependencia(f"Integridade inválida: {caminho.name}. Prepare vendor/.")
+            raise ErroDependencia("O manifesto mudou. Execute vendor/repair.exe.")
+        previstos = arquivos_previstos(contrato)
+        if set(instaladas["arquivos"]) != set(previstos):
+            raise ErroDependencia("Lista de binários incompleta. Execute vendor/repair.exe.")
+        for relativo in previstos:
+            caminho = raiz / "vendor" / relativo
+            if not caminho.is_file():
+                raise ErroDependencia(
+                    f"Binário ausente: {caminho.name}. Execute vendor/repair.exe."
+                )
+            if sha256(caminho, cancelamento) != instaladas["arquivos"][relativo]:
+                raise ErroDependencia(
+                    f"Integridade inválida: {caminho.name}. Execute vendor/repair.exe."
+                )
         for caminho in vars(ferramentas).values():
             flag = (
                 "-version" if caminho in {ferramentas.ffmpeg, ferramentas.ffprobe} else "--version"
@@ -57,6 +64,6 @@ def verificar(raiz: Path, cancelamento: threading.Event) -> Ferramentas:
             executar([str(caminho), flag], cancelamento, lambda linha: None, limite=20)
     except (OSError, ValueError, KeyError, TypeError) as erro:
         raise ErroDependencia(
-            "Instalação portátil incompleta. Prepare vendor/ novamente."
+            "Instalação portátil incompleta. Execute vendor/repair.exe."
         ) from erro
     return ferramentas

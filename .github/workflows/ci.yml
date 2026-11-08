@@ -1,5 +1,5 @@
 name: Validar projeto
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 jobs:
   testes:
     runs-on: windows-latest
@@ -13,7 +13,7 @@ jobs:
       - run: python -m poetry run python scripts/verificar.py
       - run: python -m poetry build
   pacote:
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     needs: testes
     runs-on: windows-latest
     steps:
@@ -24,8 +24,16 @@ jobs:
       - run: python -m pip install poetry
       - run: python -m poetry install
       - run: python -m poetry run python scripts/preparar_ferramentas.py
-      - run: $env:GITHUB_REF_NAME.TrimStart('v') | python -m poetry run python scripts/compilar.py
+      - run: python -m poetry run python -m pytest -q -m externo
+      - shell: pwsh
+        run: |
+          $versao = if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $env:GITHUB_REF_NAME.TrimStart('v')
+          } else {
+            python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"
+          }
+          python -m poetry run python scripts/compilar.py --versao $versao --zip
       - uses: actions/upload-artifact@v4
         with:
           name: DLPDownloader-windows
-          path: releases/DLPDownloader-*/
+          path: releases/DLPDownloader-*

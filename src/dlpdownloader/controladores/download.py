@@ -19,12 +19,13 @@ LOGGER = logging.getLogger(__name__)
 class ControladorDownload(QObject):
     """Recebe serviços por injeção; mudanças de estado passam por _transicionar."""
 
-    def __init__(self, janela, preferencias, verificar, criar_servico):
+    def __init__(self, janela, preferencias, verificar, criar_servico, solicitar_reparo=None):
         super().__init__(janela)
         self.janela = janela
         self.preferencias = preferencias
         self.verificar = verificar
         self.criar_servico = criar_servico
+        self.solicitar_reparo = solicitar_reparo or (lambda: False)
         self.estado = Estado.VERIFICANDO
         self.servico = None
         self.thread = None
@@ -182,7 +183,17 @@ class ControladorDownload(QObject):
                 self.janela.atualizar_status(aviso or TEXTOS["pronto"])
             else:
                 self._transicionar(Estado.INDISPONIVEL)
-                self.janela.atualizar_status(f"{TEXTOS['indisponivel']} {erro}")
+                self.janela.atualizar_status("")
+                if self.janela.perguntar_reparo():
+                    if self.solicitar_reparo():
+                        self.janela.permitir_fechamento()
+                    else:
+                        self.janela.exibir_erro(
+                            "Não foi possível encontrar vendor/repair.exe. "
+                            "Extraia novamente o pacote completo."
+                        )
+                else:
+                    self.janela.avisar_reparo_manual()
         else:
             self._transicionar(Estado.INDISPONIVEL)
             self.janela.atualizar_status(TEXTOS["indisponivel"])

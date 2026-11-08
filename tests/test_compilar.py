@@ -7,6 +7,7 @@ import pytest
 
 from scripts.compilar import ambiente_compilacao, compilar, executar_compilador, montar_comando
 from scripts.comum import bloqueio
+from tests.apoio_vendor import criar_vendor
 
 
 @pytest.fixture
@@ -14,18 +15,21 @@ def projeto(tmp_path, monkeypatch):
     monkeypatch.setattr("scripts.compilar.validar_pacote", lambda *args: None)
     monkeypatch.setattr("builtins.input", lambda _: "1.1.0")
     raiz = tmp_path / "projeto"
-    (raiz / "vendor").mkdir(parents=True)
-    (raiz / "vendor/installed.json").write_text("{}")
-    (raiz / "vendor/manifest.json").write_text("{}")
+    criar_vendor(raiz)
     (raiz / "pyproject.toml").write_text('[project]\nversion="1.1.0"')
     (raiz / "README.md").write_text("Documentação")
     return raiz
 
 
 def compilador_falso(comando, **kwargs):
-    destino = Path(comando[comando.index("--distpath") + 1]) / "DLPDownloader"
-    destino.mkdir(parents=True)
-    (destino / "DLPDownloader.exe").write_bytes(b"exe")
+    destino = Path(comando[comando.index("--distpath") + 1])
+    if comando[comando.index("--name") + 1] == "repair":
+        destino.mkdir(parents=True)
+        (destino / "repair.exe").write_bytes(b"repair")
+    else:
+        destino = destino / "DLPDownloader"
+        destino.mkdir(parents=True)
+        (destino / "DLPDownloader.exe").write_bytes(b"exe")
     assert kwargs["capture_output"] and kwargs["check"]
     return subprocess.CompletedProcess(comando, 0, stdout="saida oculta", stderr="")
 
@@ -40,14 +44,7 @@ def test_build_sem_spec_entrada_com_recursos_e_sem_upx(tmp_path):
     assert "--noupx" in comando and "--strip" not in comando
     assert not any(arg.endswith(".spec") for arg in comando)
     assert "--windowed" in comando and "--add-data" in comando
-
-
-
-
-
-
-
-
+    assert comando[comando.index("--contents-directory") + 1] == "lib"
 
 
 def test_falha_nao_publica_nem_consome_numero(projeto, capsys):
@@ -65,8 +62,6 @@ def test_executavel_ausente_mesmo_com_retorno_zero(projeto):
     with pytest.raises(RuntimeError, match="executável"):
         construir(projeto, lambda *a, **k: None)
     assert not (projeto / "releases/historico.json").exists()
-
-
 
 
 def test_bloqueio_concorrente(tmp_path):
@@ -89,8 +84,6 @@ def test_diagnostico_limitado_a_trinta_linhas(capsys):
     assert linhas[-1] == "49" and "0" not in linhas
 
 
-
-
 def test_path_do_compilador_nao_herda_dlls_de_outros_programas(monkeypatch):
     monkeypatch.setenv("PATH", r"C:\FerramentaExterna\bin")
     ambiente = ambiente_compilacao()
@@ -107,3 +100,34 @@ def test_smoke_test_falho_nao_publica_pacote(projeto, monkeypatch):
         construir(projeto)
     assert not list((projeto / "releases").glob("DLPDownloader-*"))
     assert not (projeto / "releases/historico.json").exists()
+
+
+def test_entrega_existente_recusada_antes_de_compilar(projeto):
+    final = projeto / "releases/DLPDownloader-1.1.0"
+    final.mkdir(parents=True)
+    (final / "original.txt").write_text("preservar")
+
+    def nao_executar(*a, **k):
+        pytest.fail("Não deveria iniciar PyInstaller")
+
+    with pytest.raises(RuntimeError, match="existe"):
+        construir(projeto, nao_executar)
+    assert (final / "original.txt").read_text() == "preservar"
+
+
+def test_zip_e_relatorio_da_entrega(projeto):
+    import json
+    import zipfile
+
+    final = compilar(
+        projeto,
+        executar=compilador_falso,
+        validar_ferramentas=lambda *a: None,
+        versao="1.3.0",
+        criar_zip=True,
+    )
+    relatorio = json.loads((final.parent / f"{final.name}.tamanho.json").read_text())
+    assert relatorio["componentes"]["vendor/ffmpeg"] > 0
+    assert relatorio["zip_bytes"] > 0
+    with zipfile.ZipFile(final.parent / f"{final.name}.zip") as arquivo:
+        assert "DLPDownloader/vendor/ffmpeg/avcodec.dll" in arquivo.namelist()

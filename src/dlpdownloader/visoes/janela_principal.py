@@ -12,13 +12,14 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMenuBar,
     QMessageBox,
     QPushButton,
     QVBoxLayout,
     QWidget,
 )
 
-from dlpdownloader.config.interface import ALTURA, LARGURA, TEXTOS, TITULO
+from dlpdownloader.config.interface import ALTURA, ATUALIZACOES, LARGURA, TEXTOS, TITULO
 from dlpdownloader.config.perfis import PERFIS
 from dlpdownloader.visoes.dialogo_progresso import DialogoProgresso
 
@@ -27,6 +28,7 @@ class JanelaPrincipal(QMainWindow):
     """View passiva; não importa Model, serviço ou Controller."""
 
     download_solicitado = pyqtSignal(str, str, object, str)
+    atualizacao_solicitada = pyqtSignal()
     pasta_solicitada = pyqtSignal()
     fechamento_solicitado = pyqtSignal()
 
@@ -38,6 +40,14 @@ class JanelaPrincipal(QMainWindow):
         self._ocupada = False
         self._pode_fechar = False
         self.popup = None
+        self.consulta = None
+        self.consultando_atualizacao = False
+        self.antes_de_fechar = lambda: True
+        barra = QMenuBar(self)
+        menu = barra.addMenu(ATUALIZACOES["menu"])
+        self.acao_atualizar = menu.addAction(ATUALIZACOES["procurar"])
+        self.acao_atualizar.triggered.connect(self.atualizacao_solicitada.emit)
+        self.menuBar().setCornerWidget(barra, Qt.Corner.TopRightCorner)
         central = QWidget()
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
@@ -116,6 +126,7 @@ class JanelaPrincipal(QMainWindow):
     def definir_ocupada(self, ocupada: bool, disponivel: bool = True) -> None:
         """Bloqueia entradas e preserva o bloqueio por falta de ferramentas."""
         self._ocupada = ocupada
+        self.acao_atualizar.setEnabled(not ocupada and not self.consultando_atualizacao)
         for widget in (self.url, self.formato, self.bitrate, self.escolher):
             widget.setEnabled(not ocupada)
         self.baixar.setEnabled(not ocupada and disponivel)
@@ -152,6 +163,21 @@ class JanelaPrincipal(QMainWindow):
         caixa.setDefaultButton(nao)
         caixa.exec()
         return caixa.clickedButton() == sim
+
+    def perguntar_reparo(self) -> bool:
+        """Oferece reparo depois da verificação das ferramentas."""
+        caixa = QMessageBox(
+            QMessageBox.Icon.Critical, TITULO, TEXTOS["perguntar_reparo"], parent=self
+        )
+        sim = caixa.addButton(TEXTOS["sim"], QMessageBox.ButtonRole.YesRole)
+        nao = caixa.addButton(TEXTOS["nao"], QMessageBox.ButtonRole.NoRole)
+        caixa.setDefaultButton(nao)
+        caixa.exec()
+        return caixa.clickedButton() == sim
+
+    def avisar_reparo_manual(self) -> None:
+        """Informa como iniciar o reparo depois de fechar o aplicativo."""
+        QMessageBox.warning(self, TITULO, TEXTOS["aviso_reparo"])
 
     def perguntar_fechamento(self) -> bool:
         """Pede confirmação apenas durante uma operação ativa."""
@@ -192,9 +218,40 @@ class JanelaPrincipal(QMainWindow):
         self._pode_fechar = True
         self.close()
 
+    def mostrar_consulta(self, cancelar):
+        self.consulta = DialogoProgresso(self)
+        self.consulta.etapa.setText(ATUALIZACOES["verificando"])
+        self.consulta.cancelamento_solicitado.connect(cancelar)
+        self.consulta.show()
+
+    def fechar_consulta(self):
+        if self.consulta:
+            self.consulta.finalizar()
+            self.consulta.deleteLater()
+            self.consulta = None
+
+    def informar_atualizado(self, versao):
+        QMessageBox.information(
+            self, TITULO, f"{ATUALIZACOES['atualizado']}\nVersão atual: {versao}"
+        )
+
+    def oferecer_atualizacao(self, local, remota):
+        caixa = QMessageBox(self)
+        caixa.setWindowTitle(TITULO)
+        caixa.setText(ATUALIZACOES["disponivel"])
+        caixa.setInformativeText(f"Versão atual: {local}\nVersão disponível: {remota}")
+        baixar = caixa.addButton(ATUALIZACOES["baixar"], QMessageBox.ButtonRole.AcceptRole)
+        depois = caixa.addButton(ATUALIZACOES["depois"], QMessageBox.ButtonRole.RejectRole)
+        caixa.setDefaultButton(depois)
+        caixa.exec()
+        return caixa.clickedButton() == baixar
+
     def closeEvent(self, evento: QCloseEvent) -> None:
         if self._pode_fechar:
-            evento.accept()
+            if self.antes_de_fechar():
+                evento.accept()
+            else:
+                evento.ignore()
         else:
             evento.ignore()
             self.fechamento_solicitado.emit()

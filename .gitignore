@@ -15,3 +15,8 @@ vendor/installed.json
 .ferramentas-*/
 *.log
 
+
+vendor/**/*.dll
+
+.preparacao.lock
+.recuperacao-*/

@@ -54,6 +54,72 @@ def test_ambiente_ausente_bloqueia_download_mas_restaura_destino(janela, tmp_pat
     assert janela.destino.text() == str(tmp_path)
 
 
+def test_ferramentas_ausentes_recusa_reparo_exibe_aviso(janela, tmp_path, qtbot):
+    def ausente(evento):
+        raise ErroDependencia("ausente")
+
+    avisos = []
+    janela.perguntar_reparo = lambda: False
+    janela.avisar_reparo_manual = lambda: avisos.append(True)
+    controlador = preparar(janela, tmp_path, None, ausente)
+    controlador.inicializar()
+    qtbot.waitUntil(lambda: controlador.thread is None)
+    assert avisos == [True] and janela.status.text() == ""
+    assert controlador.estado == Estado.INDISPONIVEL and not janela.baixar.isEnabled()
+
+
+def test_ferramentas_ausentes_aceita_reparo_fecha_app(janela, tmp_path, qtbot):
+    def ausente(evento):
+        raise ErroDependencia("ausente")
+
+    acoes = []
+    janela.perguntar_reparo = lambda: True
+    janela.permitir_fechamento = lambda: acoes.append("fechou")
+    preferencias = Preferencias(tmp_path / "dados/config.json", tmp_path)
+    controlador = ControladorDownload(
+        janela,
+        preferencias,
+        ausente,
+        lambda ferramentas: None,
+        lambda: acoes.append("solicitou") or True,
+    )
+    controlador.inicializar()
+    qtbot.waitUntil(lambda: controlador.thread is None)
+    assert acoes == ["solicitou", "fechou"] and janela.status.text() == ""
+
+
+def test_reparador_ausente_mostra_erro_e_preserva_janela(janela, tmp_path, qtbot):
+    def ausente(evento):
+        raise ErroDependencia("ausente")
+
+    erros = []
+    janela.perguntar_reparo = lambda: True
+    janela.exibir_erro = erros.append
+    fechamentos = []
+    janela.permitir_fechamento = lambda: fechamentos.append(True)
+    controlador = preparar(janela, tmp_path, None, ausente)
+    controlador.inicializar()
+    qtbot.waitUntil(lambda: controlador.thread is None)
+    assert erros and "repair.exe" in erros[0] and not fechamentos
+
+
+def test_dialogo_reparo_mostra_pergunta_e_responde_sim_nao(janela):
+    from PyQt6.QtWidgets import QApplication, QMessageBox
+
+    from dlpdownloader.config.interface import TEXTOS
+
+    for texto, esperado in [(TEXTOS["sim"], True), (TEXTOS["nao"], False)]:
+
+        def responder():
+            caixa = QApplication.activeModalWidget()
+            assert caixa.icon() == QMessageBox.Icon.Critical
+            assert caixa.text() == TEXTOS["perguntar_reparo"]
+            next(b for b in caixa.buttons() if b.text() == texto).click()
+
+        QTimer.singleShot(0, responder)
+        assert type(janela).perguntar_reparo(janela) is esperado
+
+
 def test_trabalho_nao_bloqueia_gui_e_ignora_inicio_duplicado(janela, tmp_path, qtbot):
     liberar = threading.Event()
     chamadas = []

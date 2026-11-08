@@ -61,15 +61,17 @@ FFmpeg e Deno ocupam uma parte relevante da distribuição.
 
 [vendor/manifest.json](vendor/manifest.json) fixa versões, URLs oficiais e SHA-256.
 `preparar_ferramentas.py` verifica os downloads e extrai somente arquivos esperados.
-Executáveis e `installed.json` são gerados localmente e ignorados pelo Git.
+Executáveis, DLLs e `installed.json` são gerados localmente e ignorados pelo Git.
 
 ```text
 vendor/
 ├── manifest.json
-├── installed.json           # hashes dos executáveis preparados
+├── installed.json           # hashes dos executáveis e DLLs preparados
 ├── yt-dlp/yt-dlp.exe
 ├── ffmpeg/ffmpeg.exe
 ├── ffmpeg/ffprobe.exe
+├── ffmpeg/*.dll             # bibliotecas compartilhadas declaradas no manifesto
+├── repair.exe               # incluído nas distribuições compiladas
 ├── deno/deno.exe
 └── licenses/
 ```
@@ -203,8 +205,9 @@ Ela gera mídia sintética com FFmpeg, serve somente em `127.0.0.1`, executa yt-
 verifica streams com FFprobe. Não baixa conteúdo do YouTube. Ambientes que bloqueiam
 sockets locais precisam permitir esse tráfego para executar esses testes.
 
-A CI Windows valida instalação, qualidade e pacote Python. Em tags, um job separado
-prepara ferramentas e gera a distribuição desktop como artefato.
+A CI Windows valida instalação, qualidade e pacote Python. Em pull requests, execução
+manual e tags, um job separado prepara ferramentas, executa testes externos e gera a
+distribuição desktop como artefato.
 
 ## Compilação
 
@@ -224,9 +227,9 @@ incompatíveis de outros programas instalados na máquina.
 
 ```text
 releases/
-└── DLPDownloader-1.1.0/
+└── DLPDownloader-1.3.0/
     ├── DLPDownloader.exe
-    ├── _internal/
+    ├── lib/
     ├── vendor/
     └── README.md
 ```
@@ -237,7 +240,7 @@ já existir uma pasta com o mesmo nome. Compilações simultâneas são bloquead
 falhas não publicam pacotes incompletos. A saída inclui diagnóstico se o PyInstaller falhar.
 
 O build já exige um smoke test de inicialização em modo offscreen, com PATH e dados
-isolados, antes de publicar a pasta. Esse teste verifica o estado PRONTO e não baixa mídia.
+isolados, antes de publicar a pasta. Esse teste verifica o estado PRONTO e os perfis com mídia sintética servida localmente.
 Para repetir em um pacote existente, use `scripts/validar_pacote.py` com o caminho da pasta.
 
 Distribua **a pasta inteira**. Valide em Windows sem Python ou ferramentas globais,
@@ -307,3 +310,47 @@ Nenhuma licença foi presumida ou criada na refatoração.
 Terceiros têm termos próprios. Preserve [vendor/licenses/](vendor/licenses/), incluindo
 os avisos obtidos na preparação, e confira obrigações de redistribuição dos executáveis
 e disponibilização das fontes correspondentes.
+
+### Distribuição 1.3.0
+
+FFmpeg e FFprobe usam bibliotecas compartilhadas LGPL em `vendor/ffmpeg`, incluindo as
+sete DLLs declaradas em `vendor/manifest.json`. Deno continua incluído. Distribua a pasta
+inteira: apagar ou trocar DLLs impede a verificação de integridade. Essa variante remove
+alguns recursos de formatos raros; não altera os perfis de saída oferecidos pelo aplicativo.
+
+O build também aceita execução sem pergunta e compactação opcional:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\compilar.py --versao 1.3.0 --zip
+```
+
+Uma entrega existente é recusada antes de compilar. A pasta `lib` contém Python, Qt e
+recursos; as bibliotecas Qt não foram reduzidas. Ao lado da pasta publicada ficam o
+relatório de tamanho em bytes, versões do ambiente e, com `--zip`, o arquivo compactado.
+Antes de publicar, o build exige inicialização e testes de mídia local dos oito perfis no
+executável compilado, incluindo recusa de substituição e cancelamento. Não usa a internet
+nesses testes nem depende de FFmpeg/Python instalados globalmente.
+
+### Reparar ferramentas portáteis
+
+Se o aplicativo informar que as ferramentas estão indisponíveis, ele oferecerá iniciar o
+reparo em um terminal. Também é possível fechar o DLP Downloader e executar
+`vendor/repair.exe` em um terminal aberto na pasta do aplicativo:
+
+```powershell
+.\vendor\repair.exe
+```
+
+O reparador
+precisa de acesso à internet e permissão de escrita na pasta do aplicativo. Ele baixa e
+verifica novamente as ferramentas, restaura o manifesto e substitui os arquivos necessários
+sem pedir confirmação. Aguarde a mensagem de conclusão antes de reabrir o aplicativo.
+O próprio `repair.exe` precisa estar presente para executar o reparo; se estiver ausente ou
+danificado, extraia novamente o pacote completo em uma pasta de sua escolha.
+
+### Atualizações do aplicativo
+
+O menu **Opções → Procurar atualizações** verifica a versão estável mais recente no GitHub.
+O aplicativo também faz essa consulta silenciosamente ao abrir; o usuário decide se deseja
+abrir a página da nova versão no navegador. A consulta requer internet e não instala nada
+automaticamente. Em uma beta, a release estável da mesma versão também é oferecida.

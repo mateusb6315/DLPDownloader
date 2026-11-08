@@ -14,7 +14,12 @@ def validar_pacote(pacote: Path, dados: Path, limite: float = 40) -> None:
     from dlpdownloader.servicos.processos import encerrar_arvore
 
     dados.mkdir(parents=True, exist_ok=True)
-    ambiente = {**os.environ, "QT_QPA_PLATFORM": "offscreen", "LOCALAPPDATA": str(dados)}
+    ambiente = {
+        **os.environ,
+        "QT_QPA_PLATFORM": "offscreen",
+        "LOCALAPPDATA": str(dados),
+        "DLP_SMOKE_TEST": "1",
+    }
     ambiente["PATH"] = str(Path(ambiente.get("SystemRoot", r"C:\Windows")) / "System32")
     log = dados / "DLPDownloader/aplicacao.log"
     with (dados / "inicializacao.stderr").open("wb") as erros:
@@ -32,6 +37,21 @@ def validar_pacote(pacote: Path, dados: Path, limite: float = 40) -> None:
             while time.monotonic() < prazo:
                 conteudo = log.read_text(encoding="utf-8") if log.exists() else ""
                 if "Estado da aplicação: PRONTO" in conteudo:
+                    subprocess.run(
+                        [
+                            str(pacote / "DLPDownloader.exe"),
+                            "--verificar-midia",
+                            str(dados / "midia"),
+                        ],
+                        cwd=dados,
+                        env=ambiente,
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.DEVNULL,
+                        stderr=erros,
+                        timeout=180,
+                        check=True,
+                        creationflags=subprocess.CREATE_NO_WINDOW,
+                    )
                     return
                 if processo.poll() is not None or "INDISPONIVEL" in conteudo:
                     break
@@ -53,7 +73,7 @@ def main() -> int:
     try:
         with tempfile.TemporaryDirectory(prefix="dlp-smoke-") as pasta:
             validar_pacote(args.pacote.resolve(), Path(pasta))
-    except (OSError, RuntimeError, subprocess.TimeoutExpired) as erro:
+    except (OSError, RuntimeError, subprocess.SubprocessError) as erro:
         print(f"ERRO: {erro}", file=sys.stderr)
         return 1
     print("Pacote alcançou PRONTO em ambiente isolado.")

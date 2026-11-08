@@ -25,6 +25,8 @@ def janela(qtbot):
     view = JanelaPrincipal(caminho_icone())
     view.exibir_erro = lambda mensagem: None
     view.exibir_sucesso = lambda caminho: None
+    view.perguntar_reparo = lambda: False
+    view.avisar_reparo_manual = lambda: None
     qtbot.addWidget(view)
     yield view
     view._pode_fechar = True

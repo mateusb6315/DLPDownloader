@@ -40,7 +40,7 @@ def midia(tmp_path_factory):
             "-t",
             "1",
             "-c:v",
-            "libx264",
+            "mpeg4",
             "-pix_fmt",
             "yuv420p",
             "-c:a",
@@ -73,6 +73,31 @@ def midia(tmp_path_factory):
         creationflags=subprocess.CREATE_NO_WINDOW,
         cwd=pasta,
     )
+    # Entradas adicionais exercitam contêineres, codecs e HLS sem libx264.
+    for nome, argumentos in [
+        ("fonte.webm", ["-c:v", "libvpx-vp9", "-c:a", "libopus"]),
+        ("h264.mp4", ["-vf", "scale=160:96", "-c:v", "libopenh264", "-c:a", "aac"]),
+        ("hevc.mp4", ["-vf", "scale=160:96", "-c:v", "libkvazaar", "-c:a", "aac"]),
+        ("av1.webm", ["-c:v", "libaom-av1", "-cpu-used", "8", "-c:a", "libopus"]),
+        ("fonte.ogg", ["-vn", "-c:a", "libvorbis"]),
+        ("fonte.m3u8", ["-vn", "-c:a", "aac", "-f", "hls", "-hls_time", "1"]),
+    ]:
+        subprocess.run(
+            [
+                str(ferramentas.ffmpeg),
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-nostdin",
+                "-i",
+                str(fonte),
+                *argumentos,
+                str(pasta / nome),
+            ],
+            check=True,
+            capture_output=True,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+        )
     handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(pasta))
     servidor = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=servidor.serve_forever, daemon=True)
@@ -146,3 +171,24 @@ def test_juncao_real_de_video_e_audio_separados(midia, pedido, perfil):
         )
     )
     assert {s["codec_type"] for s in dados["streams"]} == {"audio", "video"}
+
+
+@pytest.mark.parametrize(
+    "entrada,perfil,bitrate",
+    [
+        ("fonte.webm", "mkv", None),
+        ("h264.mp4", "mp4", None),
+        ("hevc.mp4", "mkv", None),
+        ("av1.webm", "mkv", None),
+        ("fonte.webm", "mp3", 192),
+        ("fonte.webm", "flac", None),
+        ("fonte.ogg", "opus", 128),
+        ("fonte.m3u8", "m4a", 192),
+    ],
+)
+def test_entradas_codecs_e_hls(midia, pedido, entrada, perfil, bitrate):
+    ferramentas, url = midia
+    pedido = replace(pedido, url=url.replace("fonte.mp4", entrada), perfil=perfil, bitrate=bitrate)
+    resultado = ServicoDownload(ferramentas).baixar(pedido, threading.Event(), lambda e: None)
+    assert resultado.stat().st_size > 0
+    assert not list(pedido.destino.glob(".dlp-*"))

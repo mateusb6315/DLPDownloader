@@ -15,8 +15,12 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from dlpdownloader.modelos.erros import ErroAplicacao
+from dlpdownloader.servicos.arquivos import gravar_json
+from scripts.compilar_repair import compilar_repair
 from scripts.comum import RAIZ, bloqueio, status
+from scripts.pacote import copiar_vendor, medir_pacote
 from scripts.validar_pacote import validar_pacote
+from scripts.versao_build import preparar_versao
 
 
 def montar_comando(raiz: Path, temporario: Path) -> list[str]:
@@ -29,12 +33,16 @@ def montar_comando(raiz: Path, temporario: Path) -> list[str]:
         "--noconfirm",
         "--clean",
         "--onedir",
+        "--contents-directory",
+        "lib",
         "--windowed",
         "--noupx",
         "--name",
         "DLPDownloader",
         "--paths",
         str(raiz / "src"),
+        "--paths",
+        str(temporario),
         "--distpath",
         str(temporario / "dist"),
         "--workpath",
@@ -101,6 +109,8 @@ def compilar(
     destino: Path | None = None,
     executar=subprocess.run,
     validar_ferramentas=None,
+    versao: str | None = None,
+    criar_zip: bool = False,
 ) -> Path:
     """Compila e publica a versão informada pelo usuário."""
     from dlpdownloader.servicos.dependencias import verificar
@@ -114,24 +124,58 @@ def compilar(
     (validar_ferramentas or verificar)(raiz, threading.Event())
     if not (raiz / "vendor/installed.json").is_file():
         raise RuntimeError("Prepare as ferramentas antes de compilar.")
-    versao = solicitar_versao()
+    versao = versao if versao is not None else solicitar_versao()
+    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", versao):
+        raise ValueError("Formato de versão inválido.")
     with bloqueio(destino / ".compilacao.lock"):
         final = destino / f"DLPDownloader-{versao}"
+        if any(
+            p.exists()
+            for p in (final, destino / f"{final.name}.zip", destino / f"{final.name}.tamanho.json")
+        ):
+            raise RuntimeError("Já existe uma entrega dessa versão no destino.")
         with tempfile.TemporaryDirectory(prefix=".compilacao-", dir=destino) as pasta:
             temporario = Path(pasta)
+            preparar_versao(raiz, temporario, versao, beta=False)
             status("Fazendo a compilação…")
             executar_compilador(montar_comando(raiz, temporario), executar)
             pacote = temporario / "dist/DLPDownloader"
             if not (pacote / "DLPDownloader.exe").is_file():
                 raise RuntimeError("O compilador não gerou o executável esperado.")
-            shutil.copytree(
-                raiz / "vendor", pacote / "vendor", ignore=shutil.ignore_patterns(".cache", "*.zip")
-            )
+            with bloqueio(raiz / ".preparacao.lock"):
+                copiar_vendor(raiz / "vendor", pacote / "vendor")
+                compilar_repair(raiz, temporario, pacote / "vendor", executar_compilador, executar)
             shutil.copy2(raiz / "README.md", pacote / "README.md")
             status("Validando inicialização do pacote sem ferramentas globais…")
             validar_pacote(pacote, temporario / "dados-smoke")
+            relatorio = medir_pacote(pacote, versao)
+            arquivo_zip = None
+            if criar_zip:
+                status("Compactando a distribuição…")
+                arquivo_zip = Path(
+                    shutil.make_archive(
+                        str(temporario / final.name),
+                        "zip",
+                        root_dir=pacote.parent,
+                        base_dir=pacote.name,
+                    )
+                )
+                relatorio["zip_bytes"] = arquivo_zip.stat().st_size
+            status(f"Tamanho extraído: {relatorio['bytes'] / 1024**2:.2f} MiB")
             status(f"Publicando {final.name}…")
-            pacote.rename(final)
+            metadados = temporario / f"{final.name}.tamanho.json"
+            gravar_json(metadados, relatorio)
+            auxiliares = []
+            try:
+                for arquivo in [metadados, *([arquivo_zip] if arquivo_zip else [])]:
+                    publicado = destino / arquivo.name
+                    arquivo.rename(publicado)
+                    auxiliares.append(publicado)
+                pacote.rename(final)
+            except BaseException:
+                for arquivo in auxiliares:
+                    arquivo.unlink()
+                raise
     status("Compilação concluída.")
     return final
 
@@ -140,9 +184,15 @@ def main() -> int:
     """CLI com retornos 0, 1 ou 130; o .spec temporário não é uma entrada."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--destino", type=Path, help="Pasta de releases (padrão: releases/)")
+    parser.add_argument("--versao", help="Versão numérica; omitir para perguntar")
+    parser.add_argument("--zip", action="store_true", help="Gerar também ZIP da pasta inteira")
     args = parser.parse_args()
     try:
-        compilar(destino=args.destino.resolve() if args.destino else None)
+        compilar(
+            destino=args.destino.resolve() if args.destino else None,
+            versao=args.versao,
+            criar_zip=args.zip,
+        )
     except KeyboardInterrupt:
         status("Compilação interrompida pelo usuário.")
         return 130
@@ -152,6 +202,7 @@ def main() -> int:
         ValueError,
         RuntimeError,
         subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
         importlib.metadata.PackageNotFoundError,
         ErroAplicacao,
     ) as erro:

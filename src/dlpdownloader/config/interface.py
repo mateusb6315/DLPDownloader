@@ -35,7 +35,15 @@ TEXTOS = {
     "estimado": " (estimado)",
     "percentual": "%p%",
     "indeterminado": "Aguardando dados…",
-    "indisponivel": "Ferramentas indisponíveis. Execute scripts/preparar_ferramentas.py.",
+    "indisponivel": "Ferramentas indisponíveis. Feche o aplicativo e execute vendor/repair.exe.",
+    "perguntar_reparo": (
+        "Algumas ferramentas foram danificadas ou estão ausentes. "
+        "Deseja iniciar o script de reparo dos arquivos?"
+    ),
+    "aviso_reparo": (
+        "Para realizar o reparo das ferramentas, feche o DLP Downloader e "
+        "execute repair.exe na pasta vendor."
+    ),
 }
 ETAPAS = {
     "preparando": "Preparando download…",
@@ -43,6 +51,15 @@ ETAPAS = {
     "finalizando": "Finalizando download…",
 }
 CORES = {"fundo": "#f5f7fb", "texto": "#172438", "destaque": "#245dcc"}
+ATUALIZACOES = {
+    "menu": "Opções",
+    "procurar": "Procurar atualizações",
+    "verificando": "Verificando se há atualizações...",
+    "disponivel": "Há uma atualização disponível",
+    "atualizado": "Você já está usando a versão mais recente disponível.",
+    "baixar": "Baixar agora",
+    "depois": "Deixar para depois",
+}
 ESTILO = """
 QWidget { font-size: 14px; }
 QLineEdit, QComboBox { padding: 8px; border: 1px solid #bcc7d8; border-radius: 5px; }

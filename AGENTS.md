@@ -15,7 +15,7 @@ portáteis de yt-dlp, FFmpeg/FFprobe e Deno. Preserve a arquitetura MVC e a orga
 módulos pequenos, legíveis e com responsabilidade principal clara, acessíveis também a
 colaboradores iniciantes.
 
-A versão atual indicada em `pyproject.toml` e `MEMORY.md` é **1.1.0**; o projeto saiu
+A versão atual indicada em `pyproject.toml` e `MEMORY.md` é **1.3.0**; o projeto saiu
 da fase beta. Consulte esses arquivos e o código antes de assumir a versão em tarefas
 futuras. Mensagens de commit, releases e changelogs devem ser compreensíveis para o
 usuário comum, dando preferência aos efeitos percebidos por quem usa o aplicativo.
@@ -37,7 +37,7 @@ As notas de versão ficam em `changelog/<versão>.md`; use as existentes como re
 - `tests/`: testes de modelos, serviços, interface, scripts e integração; `scripts/`:
   preparação, verificação, compilação e operações Git. Consulte `scripts/README.md`.
 - `vendor/`: manifesto com versões, origens e hashes, licenças e ferramentas preparadas
-  localmente. Executáveis e `installed.json` são ignorados pelo Git.
+  localmente. Executáveis, DLLs e `installed.json` são ignorados pelo Git.
 
 Mantenha a View independente de modelos, serviços e controladores; injete dependências
 no controlador. Operações demoradas rodam em `QThread` por meio de `Trabalhador` e
@@ -77,15 +77,16 @@ Escolha verificações proporcionais à alteração; acrescente testes de regres
 em `tests/`. Para alterações de comandos de mídia ou codecs, considere também
 `.\.venv\Scripts\python.exe -m pytest -q -m externo`: exige ferramentas preparadas e
 pode exigir sockets locais. A CI Windows executa as verificações padrão e build Python;
-em tags também prepara ferramentas e publica o pacote desktop como artefato.
+em PRs, execução manual e tags também prepara ferramentas e publica o pacote desktop
+como artefato, após testes externos.
 
 `scripts/compilar.py` chama PyInstaller diretamente em modo `onedir`, sem arquivo `.spec`
 do repositório. Após verificar pré-requisitos, solicita uma versão de três componentes
 numéricos, como `1.2.0`, repetindo a pergunta até obter formato válido. Publica em
 `releases/DLPDownloader-<versão>/` ou no `--destino` informado, executando antes um smoke
 test. Não mantém histórico próprio de versões nem substitui intencionalmente uma pasta
-de release existente. Distribua a pasta inteira. A versão digitada nomeia o pacote e não
-altera automaticamente a versão em `pyproject.toml`.
+de release existente. Distribua a pasta inteira. A versão digitada nomeia o pacote e é incorporada ao executável; não altera
+automaticamente a versão em `pyproject.toml`.
 
 ## Git e documentação
 
@@ -100,3 +101,40 @@ Atualize documentação afetada ao mudar o comportamento. `docs/` é ignorada pe
 não deve conter a única cópia de documentação necessária ao projeto. Confira o código
 ao atualizar a documentação. Não presuma que a licença
 do código do aplicativo exista; preserve as licenças de terceiros em `vendor/licenses/`.
+
+## Distribuição otimizada
+
+FFmpeg/FFprobe usam build Windows x64 LGPL compartilhada fixada no manifesto, com sete
+DLLs junto dos executáveis. A preparação valida o staging e troca diretórios gerenciados
+com backup; falhas de recuperação preservam `.recuperacao-*`. Todos os binários declarados
+são verificados por SHA-256, com leitura cancelável. Deno permanece como runtime JavaScript.
+O PyInstaller usa `--contents-directory lib`; `vendor` permanece externo. O build copia
+somente binários declarados, metadados e licenças, testa mídia local no executável congelado
+e gera relatório `<pacote>.tamanho.json`. Aceita `--versao X.Y.Z` e `--zip` opcionais.
+Não aplica cortes de bibliotecas Qt, otimização de bytecode, UPX ou strip.
+
+`scripts/compilar_beta.py` reutiliza a configuração e a validação do build de produção,
+mas gera pacotes de desenvolvimento local em `releases/beta/`, sem relatório ou histórico.
+Aceita nome livre válido para arquivo Windows; a convenção é `1.3.0_beta1`. Não integra
+o fluxo do GitHub. Os metadados de integridade de `vendor` continuam necessários ao app.
+Ao implementar planos, corrigir problemas ou realizar testes locais que exijam uma
+distribuição compilada, use `scripts/compilar_beta.py` por padrão. Use `scripts/compilar.py`
+para distribuição de produção ou quando a tarefa exigir explicitamente validar o próprio
+compilador ou processo de produção. Instruções explícitas do usuário têm prioridade.
+
+Os compiladores incluem `vendor/repair.exe`, programa de console portátil com manifesto
+e aviso de licenças incorporados. Ele exige o aplicativo fechado, baixa novamente todas as
+ferramentas declaradas, verifica hashes, restaura manifesto e metadados e troca os conjuntos
+sem confirmação. A instalação usa staging com recuperação em falhas. Um bloqueio
+compartilhado impede novas instâncias do app durante o reparo; a verificação de processos
+também detecta versões antigas do executável. O reparador não substitui a si próprio.
+Se a verificação das ferramentas falhar, a interface oferece iniciar o reparo ou informa
+como fazê-lo manualmente. Ao aceitar, a janela fecha e `repair.exe` abre em console separado,
+aguardando o encerramento do processo antes de verificar e reparar. Em terminal interativo,
+o reparador aguarda qualquer tecla ao final, inclusive quando ocorrer erro.
+
+O menu Opções permite consultar releases estáveis; a consulta automática e a manual usam
+`servicos/updates.py` em thread de trabalho, sem bloquear downloads ou o fechamento seguro.
+As distribuições incorporam a versão base ao executável, sem arquivo `version.json`; nomes
+beta numéricos usam essa versão base e outros nomes usam a versão de `pyproject.toml`. Uma
+release estável da mesma versão é oferecida para builds beta. O smoke test não acessa a rede.
