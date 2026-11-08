@@ -37,7 +37,7 @@ TEXTOS = {
 ETAPAS = {
     "preparando": "Preparando download…",
     "baixando": "Baixando faixa {faixa}",
-    "finalizando": "Juntando ou convertendo as faixas…",
+    "finalizando": "Finalizando download…",
 }
 CORES = {"fundo": "#f5f7fb", "texto": "#172438", "destaque": "#245dcc"}
 ESTILO = """
