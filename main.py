@@ -1,14 +1,6 @@
-from interface import Interface
-from PyQt6.QtWidgets import QApplication
-import sys
+"""Entrada do aplicativo; instale o pacote antes de executar."""
 
-
-def main():
-    app = QApplication(sys.argv)
-    window = Interface()
-    window.show()
-    sys.exit(app.exec())
-
+from dlpdownloader.aplicacao import main
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
