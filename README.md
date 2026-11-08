@@ -414,13 +414,4 @@ um clone fica neste README e no [catálogo de scripts](scripts/README.md).
 
 ## Licenças
 
-Não existe um arquivo de licença para o código do aplicativo neste repositório.
-Consulte o responsável pelo projeto sobre permissões de uso e redistribuição do código.
-
-Terceiros têm termos próprios. Preserve [vendor/licenses/](vendor/licenses/), incluindo
-os avisos obtidos na preparação, e confira obrigações de redistribuição dos executáveis
-e disponibilização das fontes correspondentes.
-
-FFmpeg e FFprobe usam uma build Windows x64 LGPL compartilhada com sete DLLs em
-`vendor/ffmpeg`. Deno permanece incluído. Preserve também os avisos de terceiros
-fornecidos com o pacote.
+Esse projeto existe sob licença MIT. Você pode baixar, usar, modificar, aprimorar e distribuir o código, creditando ao DLP Downloader e seus autores.
