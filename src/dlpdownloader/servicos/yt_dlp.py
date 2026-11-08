@@ -10,7 +10,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from dlpdownloader.modelos.download import SolicitacaoDownload
-from dlpdownloader.modelos.erros import Cancelado, ErroDestino, ErroDownload
+from dlpdownloader.modelos.erros import Cancelado, ErroDestino, ErroDownload, SubstituicaoRecusada
 from dlpdownloader.modelos.formatos import argumentos_formato
 from dlpdownloader.modelos.progresso import (
     PREFIXO_RESULTADO,
@@ -91,6 +91,7 @@ class ServicoDownload:
         pedido: SolicitacaoDownload,
         cancelamento: threading.Event,
         progresso: Callable[[EventoProgresso], None],
+        confirmar_substituicao: Callable[[], bool] = lambda: False,
     ) -> Path:
         """Baixa/converte e publica sem substituir arquivo existente."""
         pedido.validar()
@@ -111,7 +112,16 @@ class ServicoDownload:
                     else:
                         os.link(origem, destino)
                 except FileExistsError as erro:
-                    raise ErroDestino("O arquivo já existe. Ele foi preservado.") from erro
+                    if not confirmar_substituicao():
+                        raise SubstituicaoRecusada() from erro
+                    if cancelamento.is_set():
+                        raise Cancelado()
+                    try:
+                        os.replace(origem, destino)
+                    except OSError as falha:
+                        raise ErroDestino(
+                            "Não foi possível substituir o arquivo existente."
+                        ) from falha
                 except OSError as erro:
                     raise ErroDestino(
                         "Não foi possível publicar o arquivo. Verifique permissões e espaço livre."

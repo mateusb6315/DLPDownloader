@@ -58,9 +58,11 @@ class ControladorDownload(QObject):
         self.trabalhador.moveToThread(self.thread)
         self.thread.started.connect(self.trabalhador.executar)
         self.trabalhador.progresso.connect(self._ao_progresso)
+        self.trabalhador.substituicao_solicitada.connect(self._perguntar_substituicao)
         self.trabalhador.resultado.connect(self._ao_resultado)
         self.trabalhador.falhou.connect(self._ao_erro)
         self.trabalhador.cancelado.connect(self._ao_cancelado)
+        self.trabalhador.substituicao_recusada.connect(self._ao_substituicao_recusada)
         self.trabalhador.finalizado.connect(self.thread.quit, Qt.ConnectionType.DirectConnection)
         self.trabalhador.finalizado.connect(self.trabalhador.deleteLater)
         self.thread.finished.connect(self._finalizar_thread)
@@ -81,7 +83,9 @@ class ControladorDownload(QObject):
         self._transicionar(Estado.PREPARANDO)
         self.janela.exibir_progresso(self.cancelar)
         self._executar_tarefa(
-            lambda cancelar, progresso: self.servico.baixar(pedido, cancelar, progresso)
+            lambda cancelar, progresso: self.servico.baixar(
+                pedido, cancelar, progresso, self.trabalhador.confirmar_substituicao
+            )
         )
 
     @pyqtSlot()
@@ -127,6 +131,17 @@ class ControladorDownload(QObject):
         self._terminal = ("cancelado", None)
 
     @pyqtSlot()
+    def _ao_substituicao_recusada(self) -> None:
+        self._terminal = ("cancelado", "recusado")
+
+    @pyqtSlot(object)
+    def _perguntar_substituicao(self, resposta) -> None:
+        try:
+            resposta["aceita"] = self.janela.perguntar_substituicao()
+        finally:
+            resposta["evento"].set()
+
+    @pyqtSlot()
     def _finalizar_thread(self) -> None:
         self.thread.wait()
         self.thread.deleteLater()
@@ -142,7 +157,9 @@ class ControladorDownload(QObject):
             return
         if tipo == "resultado":
             self._transicionar(Estado.CONCLUIDO)
-            self.janela.atualizar_status(TEXTOS["sucesso"].format(caminho=valor))
+            self.janela.atualizar_status(
+                f"{TEXTOS['dl_concluido']}\n{TEXTOS['sucesso'].format(caminho=valor)}"
+            )
             self.janela.exibir_sucesso(str(valor))
         elif tipo == "erro":
             self._transicionar(Estado.FALHOU)
@@ -150,7 +167,9 @@ class ControladorDownload(QObject):
             self.janela.exibir_erro(valor)
         else:
             self._transicionar(Estado.CANCELADO)
-            self.janela.atualizar_status(TEXTOS["cancelado"])
+            self.janela.atualizar_status(
+                TEXTOS["substituicao_recusada"] if valor == "recusado" else TEXTOS["cancelado"]
+            )
         self._transicionar(Estado.PRONTO)
 
     def _finalizar_ambiente(self, tipo, valor) -> None:

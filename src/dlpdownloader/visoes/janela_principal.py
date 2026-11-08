@@ -138,7 +138,20 @@ class JanelaPrincipal(QMainWindow):
 
     def exibir_sucesso(self, caminho: str) -> None:
         """Confirma o caminho final da operação."""
-        QMessageBox.information(self, TITULO, TEXTOS["sucesso"].format(caminho=caminho))
+        QMessageBox.information(
+            self, TITULO, f"{TEXTOS['dl_concluido']}\n{TEXTOS['sucesso'].format(caminho=caminho)}"
+        )
+
+    def perguntar_substituicao(self) -> bool:
+        """Confirma explicitamente a substituição de um arquivo existente."""
+        caixa = QMessageBox(self)
+        caixa.setWindowTitle(TITULO)
+        caixa.setText(TEXTOS["confirmar_substituicao"])
+        sim = caixa.addButton(TEXTOS["sim"], QMessageBox.ButtonRole.YesRole)
+        nao = caixa.addButton(TEXTOS["nao"], QMessageBox.ButtonRole.NoRole)
+        caixa.setDefaultButton(nao)
+        caixa.exec()
+        return caixa.clickedButton() == sim
 
     def perguntar_fechamento(self) -> bool:
         """Pede confirmação apenas durante uma operação ativa."""

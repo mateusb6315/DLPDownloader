@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from dlpdownloader.modelos.erros import Cancelado, ErroDestino, ErroDownload
+from dlpdownloader.modelos.erros import Cancelado, ErroDownload, SubstituicaoRecusada
 from dlpdownloader.servicos.yt_dlp import ServicoDownload, montar_comando
 
 
@@ -48,11 +48,20 @@ def test_arquivo_publicado_e_staging_removido(pedido, ferramentas):
 def test_arquivo_existente_preservado(pedido, ferramentas):
     final = pedido.destino / "Título [id].m4a"
     final.write_bytes(b"original")
-    with pytest.raises(ErroDestino):
+    with pytest.raises(SubstituicaoRecusada):
         ServicoDownload(ferramentas, executor_falso([])).baixar(
             pedido, threading.Event(), lambda evento: None
         )
     assert final.read_bytes() == b"original"
+
+
+def test_arquivo_existente_substituido_apos_confirmacao(pedido, ferramentas):
+    final = pedido.destino / "Título [id].m4a"
+    final.write_bytes(b"original")
+    resultado = ServicoDownload(ferramentas, executor_falso([])).baixar(
+        pedido, threading.Event(), lambda evento: None, lambda: True
+    )
+    assert resultado == final and final.read_bytes() == b"audio-ou-video"
 
 
 def test_bitrate_explicito_realmente_invoca_encoder(pedido, ferramentas):

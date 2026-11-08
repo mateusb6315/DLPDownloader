@@ -19,3 +19,7 @@ class ErroDestino(ErroAplicacao):
 
 class Cancelado(ErroAplicacao):
     """Cancelamento solicitado pelo usuário."""
+
+
+class SubstituicaoRecusada(Cancelado):
+    """O usuário optou por manter o arquivo existente."""

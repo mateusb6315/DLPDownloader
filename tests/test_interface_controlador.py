@@ -59,7 +59,7 @@ def test_trabalho_nao_bloqueia_gui_e_ignora_inicio_duplicado(janela, tmp_path, q
     chamadas = []
 
     class Servico:
-        def baixar(self, pedido, cancelar, progresso):
+        def baixar(self, pedido, cancelar, progresso, confirmar):
             chamadas.append(threading.get_ident())
             progresso(EventoProgresso("baixando", "299", 50, 100))
             if not liberar.wait(5):
@@ -85,7 +85,7 @@ def test_cancelamento_e_cleanup_sem_sucesso(janela, tmp_path, qtbot):
     janela.exibir_sucesso = sucessos.append
 
     class Servico:
-        def baixar(self, pedido, cancelar, progresso):
+        def baixar(self, pedido, cancelar, progresso, confirmar):
             iniciou.set()
             cancelar.wait(5)
             raise Cancelado()
@@ -109,7 +109,7 @@ def test_erro_apos_progresso_nao_gera_sucesso(janela, tmp_path, qtbot):
     janela.exibir_erro = erros.append
 
     class Servico:
-        def baixar(self, pedido, cancelar, progresso):
+        def baixar(self, pedido, cancelar, progresso, confirmar):
             progresso(EventoProgresso("baixando", "video", 100, 100))
             progresso(EventoProgresso("finalizando"))
             raise ErroDownload("Falha na junção")
@@ -130,7 +130,7 @@ def test_fechar_aguarda_cancelamento_do_trabalho(janela, tmp_path, qtbot):
     janela.permitir_fechamento = lambda: fechamentos.append(True)
 
     class Servico:
-        def baixar(self, pedido, cancelar, progresso):
+        def baixar(self, pedido, cancelar, progresso, confirmar):
             iniciou.set()
             cancelar.wait(5)
             raise Cancelado()
@@ -143,3 +143,46 @@ def test_fechar_aguarda_cancelamento_do_trabalho(janela, tmp_path, qtbot):
     controlador.fechar()
     qtbot.waitUntil(lambda: controlador.thread is None)
     assert fechamentos == [True] and janela.popup is None
+
+
+def test_confirmacao_de_substituicao_e_mensagem_de_sucesso(janela, tmp_path, qtbot):
+    from dlpdownloader.config.interface import TEXTOS
+
+    sucessos = []
+    janela.exibir_sucesso = sucessos.append
+    janela.perguntar_substituicao = lambda: True
+
+    class Servico:
+        def baixar(self, pedido, cancelar, progresso, confirmar):
+            assert confirmar()
+            return tmp_path / "resultado.mp4"
+
+    controlador = preparar(janela, tmp_path, Servico())
+    controlador.inicializar()
+    qtbot.waitUntil(lambda: controlador.thread is None)
+    controlador.iniciar("https://example.com", "mp4", None, str(tmp_path))
+    qtbot.waitUntil(lambda: controlador.thread is None)
+    assert sucessos == [str(tmp_path / "resultado.mp4")]
+    assert janela.status.text().startswith(TEXTOS["dl_concluido"] + "\n")
+
+
+def test_recusa_de_substituicao_retorna_ao_menu(janela, tmp_path, qtbot):
+    from dlpdownloader.config.interface import TEXTOS
+    from dlpdownloader.modelos.erros import SubstituicaoRecusada
+
+    erros = []
+    janela.exibir_erro = erros.append
+    janela.perguntar_substituicao = lambda: False
+
+    class Servico:
+        def baixar(self, pedido, cancelar, progresso, confirmar):
+            if not confirmar():
+                raise SubstituicaoRecusada()
+
+    controlador = preparar(janela, tmp_path, Servico())
+    controlador.inicializar()
+    qtbot.waitUntil(lambda: controlador.thread is None)
+    controlador.iniciar("https://example.com", "mp4", None, str(tmp_path))
+    qtbot.waitUntil(lambda: controlador.thread is None)
+    assert not erros and janela.status.text() == TEXTOS["substituicao_recusada"]
+    assert janela.baixar.isEnabled() and controlador.estado == Estado.PRONTO

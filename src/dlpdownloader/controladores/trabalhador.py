@@ -6,7 +6,7 @@ import time
 
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 
-from dlpdownloader.modelos.erros import Cancelado, ErroAplicacao
+from dlpdownloader.modelos.erros import Cancelado, ErroAplicacao, SubstituicaoRecusada
 
 LOGGER = logging.getLogger(__name__)
 
@@ -15,9 +15,11 @@ class Trabalhador(QObject):
     """Executa tarefa bloqueante; widgets são responsabilidade do controlador."""
 
     progresso = pyqtSignal(object)
+    substituicao_solicitada = pyqtSignal(object)
     resultado = pyqtSignal(object)
     falhou = pyqtSignal(str)
     cancelado = pyqtSignal()
+    substituicao_recusada = pyqtSignal()
     finalizado = pyqtSignal()
 
     def __init__(self, tarefa, cancelamento: threading.Event):
@@ -35,6 +37,15 @@ class Trabalhador(QObject):
             self._etapa = chave
             self.progresso.emit(evento)
 
+    def confirmar_substituicao(self) -> bool:
+        """Aguarda a decisão da GUI sem bloquear seu loop de eventos."""
+        resposta = {"evento": threading.Event(), "aceita": False}
+        self.substituicao_solicitada.emit(resposta)
+        while not resposta["evento"].wait(0.1):
+            if self.cancelamento.is_set():
+                raise Cancelado()
+        return resposta["aceita"]
+
     @pyqtSlot()
     def executar(self) -> None:
         """Uma única saída terminal, seguida sempre por finalizado."""
@@ -43,6 +54,8 @@ class Trabalhador(QObject):
             if self.cancelamento.is_set():
                 raise Cancelado()
             self.resultado.emit(resultado)
+        except SubstituicaoRecusada:
+            self.substituicao_recusada.emit()
         except Cancelado:
             self.cancelado.emit()
         except ErroAplicacao as erro:
