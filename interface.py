@@ -62,8 +62,8 @@ class Interface(QMainWindow):
             self.popup_windows("Download completo", "O vídeo foi baixado com sucesso!")
         except ExtractorError:
             self.popup_erro_windows("Erro", "Link inválido ou ausente")
-        except DownloadError:
-            self.popup_erro_windows("Erro", "Falha no download")
+        except DownloadError as e:
+            self.popup_erro_windows("Erro", f"Falha no download: {e}")
 
     def download_m4a(self):
         url = self.url_input.text()
@@ -73,8 +73,8 @@ class Interface(QMainWindow):
             self.popup_windows("Download completo", "O áudio foi baixado com sucesso!")
         except ExtractorError:
             self.popup_erro_windows("Erro", "Link inválido ou ausente")
-        except DownloadError:
-            self.popup_erro_windows("Erro", "Falha no download")
+        except DownloadError as e:
+            self.popup_erro_windows("Erro", f"Falha no download: {e}")
 
     def download_mp3(self):
         url = self.url_input.text()
@@ -84,5 +84,5 @@ class Interface(QMainWindow):
             self.popup_windows("Download completo", "O áudio foi baixado com sucesso!")
         except ExtractorError:
             self.popup_erro_windows("Erro", "Link inválido ou ausente")
-        except DownloadError:
-            self.popup_erro_windows("Erro", "Falha no download")
+        except DownloadError as e:
+            self.popup_erro_windows("Erro", f"Falha no download: {e}")
