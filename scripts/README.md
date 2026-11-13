@@ -10,6 +10,8 @@ clone com o pacote instalado; cada script possui `--help`.
 | `verificar.py` | Executar lint, testes e verificações de arquitetura |
 | `compilar.py` | Publicar distribuição Windows completa, sem `.spec` como entrada |
 | `compilar_beta.py` | Compilar pacote local de desenvolvimento sem relatório de produção |
+| `compilarfull.py` | Gerar pacote de produção, arquivo 7z e instalador |
+| `betafull.py` | Gerar pacote beta, arquivo 7z e instalador local |
 | `compilar_repair.py` | Construir o reparador portátil com manifesto incorporado |
 | `repair.py` | Reparar as ferramentas do pacote distribuído |
 | `validar_pacote.py` | Confirmar inicialização do executável com PATH e dados isolados |
@@ -33,3 +35,16 @@ O nome é livre, observadas as regras de nomes de arquivos do Windows; a conven�
 `<próxima versão>_beta<número>`. A saída padrão é `releases/beta/`, separada da produção.
 O script aceita `--destino` e `--zip`, valida o pacote e não gera relatório nem histórico.
 É destinado a desenvolvimento local e não é executado pelo fluxo do GitHub.
+
+Para criar também um arquivo 7z e um instalador, execute
+`python scripts/betafull.py --versao 1.3.0_beta1` ou
+`python scripts/compilarfull.py --versao 1.3.0`. Ambos aceitam `--destino`,
+exigem 7-Zip e Inno Setup 6 instalados no PATH ou nos locais padrão e reutilizam
+o pacote validado pelo compilador correspondente. Os arquivos `.7z` e `-setup.exe`
+ficam ao lado da pasta; se uma etapa falhar, os artefatos já publicados são preservados.
+O instalador exige administrador, cria atalho no menu Iniciar e oferece atalho na área
+de trabalho. Beta e produção têm instalações independentes. A pasta instalada permite
+modificação por usuários locais para que o reparador funcione; portanto, outros usuários
+locais também podem alterar os executáveis. Atualizações substituem arquivos incluídos,
+mas não removem arquivos obsoletos de versões anteriores. Preferências permanecem em
+`%LOCALAPPDATA%` e não são removidas pelo desinstalador.

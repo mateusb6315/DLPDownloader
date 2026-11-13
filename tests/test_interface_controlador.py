@@ -252,3 +252,31 @@ def test_recusa_de_substituicao_retorna_ao_menu(janela, tmp_path, qtbot):
     qtbot.waitUntil(lambda: controlador.thread is None)
     assert not erros and janela.status.text() == TEXTOS["substituicao_recusada"]
     assert janela.baixar.isEnabled() and controlador.estado == Estado.PRONTO
+
+
+def test_animacao_do_botao_preserva_clique_e_retorna(janela, qtbot):
+    from PyQt6.QtCore import Qt
+
+    janela.show()
+    chamadas = []
+    janela.baixar.clicked.connect(lambda: chamadas.append(True))
+    qtbot.mouseClick(janela.baixar, Qt.MouseButton.LeftButton)
+    qtbot.waitUntil(lambda: janela.baixar.escala < 0.99)
+    qtbot.waitUntil(lambda: janela.baixar.escala == 1.0)
+    assert chamadas == [True]
+
+
+def test_realce_da_selecao_acompanha_foco(janela, qtbot):
+    janela.show()
+    janela.formato.setFocus()
+    qtbot.waitUntil(lambda: janela.formato.realce > 0.99)
+    janela.url.setFocus()
+    qtbot.waitUntil(lambda: janela.formato.realce < 0.01)
+
+
+def test_menu_mantem_margem_proporcional(janela, qtbot):
+    janela.show()
+    janela.resize(800, 450)
+    qtbot.waitUntil(
+        lambda: janela._espaco_opcoes.width() == janela._barra_opcoes.sizeHint().width() + 80
+    )

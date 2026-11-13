@@ -138,3 +138,13 @@ O menu Opções permite consultar releases estáveis; a consulta automática e a
 As distribuições incorporam a versão base ao executável, sem arquivo `version.json`; nomes
 beta numéricos usam essa versão base e outros nomes usam a versão de `pyproject.toml`. Uma
 release estável da mesma versão é oferecida para builds beta. O smoke test não acessa a rede.
+
+`scripts/betafull.py` e `scripts/compilarfull.py` reutilizam os compiladores existentes e
+geram também 7z e instalador Inno Setup 6, exigindo ambas as ferramentas instaladas.
+Os instaladores beta e estável têm identidades e pastas separadas, exigem administrador
+e permitem escrita por usuários locais na pasta instalada para o reparador. Atualizações
+não removem arquivos obsoletos. Os artefatos já publicados são preservados em falhas.
+
+A interface realça controles sob o cursor e campos com foco. As seleções animam o realce
+da borda e o botão Baixar anima sua pintura sem alterar a área de clique; o menu Opções
+mantém uma margem direita proporcional à largura da janela.

@@ -63,8 +63,13 @@ ATUALIZACOES = {
 ESTILO = """
 QWidget { font-size: 14px; }
 QLineEdit, QComboBox { padding: 8px; border: 1px solid #bcc7d8; border-radius: 5px; }
+QLineEdit:hover { border-color: #6c91d9; }
+QLineEdit:focus { border-color: #245dcc; background: #ffffff; }
 QPushButton { padding: 9px 16px; border-radius: 5px; background: #e3e9f3; }
+QPushButton:hover { background: #d1def2; }
 QPushButton#principal { background: #245dcc; color: white; font-weight: bold; }
+QPushButton#principal:hover { background: #194daa; }
+QMenuBar::item:selected, QMenu::item:selected { background: #d1def2; }
 QPushButton:disabled { background: #dde2eb; color: #788496; }
 QLabel#subtitulo { color: #53647b; }
 QLabel#status { color: #53647b; }

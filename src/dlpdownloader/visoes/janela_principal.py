@@ -5,7 +5,6 @@ from pathlib import Path
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QCloseEvent, QIcon
 from PyQt6.QtWidgets import (
-    QComboBox,
     QFileDialog,
     QFormLayout,
     QHBoxLayout,
@@ -21,6 +20,7 @@ from PyQt6.QtWidgets import (
 
 from dlpdownloader.config.interface import ALTURA, ATUALIZACOES, LARGURA, TEXTOS, TITULO
 from dlpdownloader.config.perfis import PERFIS
+from dlpdownloader.visoes.controles_animados import BotaoAnimado, SelecaoAnimada
 from dlpdownloader.visoes.dialogo_progresso import DialogoProgresso
 
 
@@ -47,7 +47,13 @@ class JanelaPrincipal(QMainWindow):
         menu = barra.addMenu(ATUALIZACOES["menu"])
         self.acao_atualizar = menu.addAction(ATUALIZACOES["procurar"])
         self.acao_atualizar.triggered.connect(self.atualizacao_solicitada.emit)
-        self.menuBar().setCornerWidget(barra, Qt.Corner.TopRightCorner)
+        self._barra_opcoes = barra
+        self._espaco_opcoes = QWidget()
+        linha_menu = QHBoxLayout(self._espaco_opcoes)
+        linha_menu.setContentsMargins(0, 0, 0, 0)
+        linha_menu.addWidget(barra)
+        linha_menu.addStretch()
+        self.menuBar().setCornerWidget(self._espaco_opcoes, Qt.Corner.TopRightCorner)
         central = QWidget()
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
@@ -58,10 +64,10 @@ class JanelaPrincipal(QMainWindow):
         formulario = QFormLayout()
         self.url = QLineEdit()
         self.url.setPlaceholderText(TEXTOS["placeholder"])
-        self.formato = QComboBox()
+        self.formato = SelecaoAnimada()
         for identificador, rotulo, *_ in PERFIS:
             self.formato.addItem(rotulo, identificador)
-        self.bitrate = QComboBox()
+        self.bitrate = SelecaoAnimada()
         self.rotulo_bitrate = QLabel(TEXTOS["bitrate"])
         self.ajuda = QLabel()
         self.ajuda.setWordWrap(True)
@@ -78,7 +84,7 @@ class JanelaPrincipal(QMainWindow):
         formulario.addRow(TEXTOS["destino"], linha_destino)
         layout.addLayout(formulario)
         layout.addStretch()
-        self.baixar = QPushButton(TEXTOS["baixar"])
+        self.baixar = BotaoAnimado(TEXTOS["baixar"])
         self.baixar.setObjectName("principal")
         layout.addWidget(self.baixar)
         self.status = QLabel(TEXTOS["verificando"])
@@ -91,6 +97,12 @@ class JanelaPrincipal(QMainWindow):
         self.escolher.clicked.connect(self._solicitar_pasta)
         self.formato.currentIndexChanged.connect(self._atualizar_perfil)
         self._atualizar_perfil()
+
+    def resizeEvent(self, evento) -> None:
+        super().resizeEvent(evento)
+        self._espaco_opcoes.setFixedWidth(
+            self._barra_opcoes.sizeHint().width() + round(self.width() * 0.1)
+        )
 
     def _atualizar_perfil(self) -> None:
         perfil = PERFIS[self.formato.currentIndex()]
