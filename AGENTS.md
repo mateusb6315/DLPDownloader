@@ -15,9 +15,8 @@ portáteis de yt-dlp, FFmpeg/FFprobe e Deno. Preserve a arquitetura MVC e a orga
 módulos pequenos, legíveis e com responsabilidade principal clara, acessíveis também a
 colaboradores iniciantes.
 
-A versão atual indicada em `pyproject.toml` e `MEMORY.md` é **1.3.0**; o projeto saiu
-da fase beta. Consulte esses arquivos e o código antes de assumir a versão em tarefas
-futuras. Mensagens de commit, releases e changelogs devem ser compreensíveis para o
+A versão atual indicada em `pyproject.toml` e `MEMORY.md` é **1.3.1**. Consulte
+esses arquivos e o código antes de assumir a versão em tarefas futuras. Mensagens de commit, releases e changelogs devem ser compreensíveis para o
 usuário comum, dando preferência aos efeitos percebidos por quem usa o aplicativo.
 As notas de versão ficam em `changelog/<versão>.md`; use as existentes como referência.
 
@@ -115,7 +114,7 @@ Não aplica cortes de bibliotecas Qt, otimização de bytecode, UPX ou strip.
 
 `scripts/compilar_beta.py` reutiliza a configuração e a validação do build de produção,
 mas gera pacotes de desenvolvimento local em `releases/beta/`, sem relatório ou histórico.
-Aceita nome livre válido para arquivo Windows; a convenção é `1.3.0_beta1`. Não integra
+Aceita nome livre válido para arquivo Windows; a convenção é `<próxima versão>_beta<número>`. Não integra
 o fluxo do GitHub. Os metadados de integridade de `vendor` continuam necessários ao app.
 Ao implementar planos, corrigir problemas ou realizar testes locais que exijam uma
 distribuição compilada, use `scripts/compilar_beta.py` por padrão. Use `scripts/compilar.py`
@@ -140,11 +139,13 @@ beta numéricos usam essa versão base e outros nomes usam a versão de `pyproje
 release estável da mesma versão é oferecida para builds beta. O smoke test não acessa a rede.
 
 `scripts/betafull.py` e `scripts/compilarfull.py` reutilizam os compiladores existentes e
-geram também 7z e instalador Inno Setup 6, exigindo ambas as ferramentas instaladas.
+geram também 7z e instalador, exigindo 7-Zip e Inno Setup instalados. A busca no
+PATH usa `ISCC`; os caminhos padrão consultados pelo código são do Inno Setup 7.
 Os instaladores beta e estável têm identidades e pastas separadas, exigem administrador
 e permitem escrita por usuários locais na pasta instalada para o reparador. Atualizações
 não removem arquivos obsoletos. Os artefatos já publicados são preservados em falhas.
 
-A interface realça controles sob o cursor e campos com foco. As seleções animam o realce
-da borda e o botão Baixar anima sua pintura sem alterar a área de clique; o menu Opções
-mantém uma margem direita proporcional à largura da janela.
+A interface realça controles sob o cursor e campos com foco. `visoes/controles_animados.py`
+anima a borda das seleções e a pintura do botão Baixar; preserve sua área de clique e os
+sinais de ação. O menu Opções mantém margem direita proporcional à largura da janela.
+Ao alterar esses controles, verifique foco, estados habilitados, cliques e redimensionamento.

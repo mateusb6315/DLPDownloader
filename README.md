@@ -1,7 +1,7 @@
 # DLP Downloader
 
 Aplicativo desktop para baixar um vídeo ou áudio por vez, escolher o formato de saída
-e salvar em uma pasta de sua preferência. A versão **1.3.0** é destinada a
+e salvar em uma pasta de sua preferência. A versão **1.3.1** é destinada a
 **Windows de 64 bits** e inclui as ferramentas necessárias para funcionar.
 
 ## Novidades recentes
@@ -32,7 +32,7 @@ sua pasta inteira. A conexão com a internet é necessária para baixar conteúd
 consultar atualizações e reparar ferramentas.
 
 ```text
-DLPDownloader-1.3.0/
+DLPDownloader-1.3.1/
 ├── DLPDownloader.exe        # abra este arquivo
 ├── lib/                    # arquivos internos; mantenha a pasta completa
 ├── vendor/                 # ferramentas de mídia e repair.exe
@@ -313,7 +313,7 @@ Para uma distribuição de produção:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\compilar.py
-.\.venv\Scripts\python.exe scripts\compilar.py --versao 1.3.0 --zip
+.\.venv\Scripts\python.exe scripts\compilar.py --versao 1.3.1 --zip
 # Opcional: escolher onde publicar a distribuição local
 .\.venv\Scripts\python.exe scripts\compilar.py --destino C:\Pacotes\DLPDownloader
 ```
@@ -326,14 +326,14 @@ incompatíveis de outros programas instalados na máquina.
 
 ```text
 releases/
-└── DLPDownloader-1.3.0/
+└── DLPDownloader-1.3.1/
     ├── DLPDownloader.exe
     ├── lib/
     ├── vendor/
     └── README.md
 ```
 
-Após verificar os pré-requisitos, o script solicita a versão no formato `1.3.0`.
+Após verificar os pré-requisitos, o script solicita a versão no formato `1.3.1`.
 A versão é incorporada ao executável e nomeia a pasta de saída; o script não altera
 `pyproject.toml`. Ao lado da pasta é gerado um relatório `<pacote>.tamanho.json`, com
 tamanhos em bytes e versões do ambiente. `--zip` gera também o arquivo compactado.
@@ -347,7 +347,7 @@ depende de ferramentas globais.
 Para repetir em um pacote existente:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\validar_pacote.py releases\DLPDownloader-1.3.0
+.\.venv\Scripts\python.exe scripts\validar_pacote.py releases\DLPDownloader-1.3.1
 ```
 
 Distribua **a pasta inteira**. Valide em Windows sem Python ou ferramentas globais,

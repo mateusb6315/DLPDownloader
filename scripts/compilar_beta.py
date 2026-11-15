@@ -96,7 +96,7 @@ def compilar_beta(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--versao", help="Nome livre; convenção: 1.3.0_beta1")
+    parser.add_argument("--versao", help="Nome livre; convenção: <próxima versão>_beta<número>")
     parser.add_argument("--destino", type=Path, help="Pasta de saída (padrão: releases/beta/)")
     parser.add_argument("--zip", action="store_true", help="Criar também um ZIP local")
     args = parser.parse_args()
