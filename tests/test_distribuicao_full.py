@@ -26,7 +26,8 @@ def preparar(monkeypatch, tmp_path, falhar=None):
         if comando[0] == "7z":
             Path(comando[3]).write_bytes(b"7z")
         else:
-            (Path(kwargs["env"]["DLP_SAIDA"]) / "instalador.exe").write_bytes(b"setup")
+            saida = kwargs["env"]["DLP_SAIDA"].replace("{{", "{")
+            (Path(saida) / "instalador.exe").write_bytes(b"setup")
 
     monkeypatch.setattr(full, "compilar_beta", compilar)
     monkeypatch.setattr(full, "compilar", compilar)
@@ -52,6 +53,31 @@ def test_falha_no_instalador_preserva_pacote_e_arquivo(tmp_path, monkeypatch):
     assert (tmp_path / "DLPDownloader-1.3.0_beta1").is_dir()
     assert (tmp_path / "DLPDownloader-1.3.0_beta1.7z").exists()
     assert not list(tmp_path.glob(".full-*"))
+
+
+@pytest.mark.parametrize("baixar_compilador", [False, True])
+def test_betafull_usa_nuitka_e_nome_padrao(tmp_path, monkeypatch, baixar_compilador):
+    import sys
+
+    from scripts import betafull
+
+    chamadas = preparar(monkeypatch, tmp_path)
+
+    def compilar(destino, versao, *, baixar_compilador=False):
+        pacote = destino / f"DLPDownloader-{versao}"
+        pacote.mkdir()
+        chamadas.append(("nuitka", baixar_compilador))
+        return pacote
+
+    monkeypatch.setattr(full, "compilar_beta", lambda **_: pytest.fail("Chamou PyInstaller"))
+    monkeypatch.setattr(betafull, "compilar_nuitka", compilar)
+    argv = ["betafull.py", "--destino", str(tmp_path)]
+    if baixar_compilador:
+        argv.append("--baixar-compilador")
+    monkeypatch.setattr(sys, "argv", argv)
+    assert betafull.main() == 0
+    assert chamadas == [("nuitka", baixar_compilador), "7z", "ISCC"]
+    assert (tmp_path / "DLPDownloader-1.3.2-beta2-setup.exe").is_file()
 
 
 def test_publicacao_nao_sobrescreve(tmp_path):

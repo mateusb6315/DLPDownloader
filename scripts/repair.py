@@ -16,6 +16,7 @@ if __package__ in (None, ""):
 
 from dlpdownloader.config.caminhos import diretorio_dados
 from dlpdownloader.modelos.erros import ErroAplicacao
+from dlpdownloader.servicos.manifesto import ler_manifesto
 from dlpdownloader.servicos.uso import bloquear_uso
 from scripts.preparar_ferramentas import preparar
 
@@ -89,13 +90,27 @@ def mostrar_terminal() -> None:
 def executar() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--aguardar-pid", type=int, help=argparse.SUPPRESS)
+    parser.add_argument("--verificar-empacotamento", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
-    if not getattr(sys, "frozen", False):
+    compilado = globals().get("__compiled__")
+    if getattr(compilado, "onefile", False):
+        raiz = Path(compilado.containing_dir).resolve().parent
+        recursos = Path(__file__).resolve().parent
+    elif getattr(sys, "frozen", False):
+        raiz = Path(sys.executable).resolve().parent.parent
+        recursos = Path(sys._MEIPASS)
+    else:
         print("Execute o repair.exe fornecido dentro da pasta vendor.")
         return 1
-    raiz = Path(sys.executable).resolve().parent.parent
-    manifesto = Path(sys._MEIPASS) / "manifest.json"
+    manifesto = recursos / "manifest.json"
     try:
+        if args.verificar_empacotamento:
+            ler_manifesto(recursos)
+            if not (recursos / "licenses/README.md").read_text(encoding="utf-8").strip():
+                raise ValueError("O aviso de licenças incorporado está vazio.")
+            if recursos == raiz / "vendor" or not (raiz / "DLPDownloader.exe").is_file():
+                raise ValueError("Não foi possível localizar o pacote externo ao reparador.")
+            return 0
         if args.aguardar_pid is not None:
             mostrar_terminal()
             aguardar_processo(args.aguardar_pid)
@@ -121,7 +136,7 @@ def main() -> int:
     try:
         return executar()
     finally:
-        if sys.stdin and sys.stdin.isatty():
+        if "--verificar-empacotamento" not in sys.argv[1:] and sys.stdin and sys.stdin.isatty():
             import msvcrt
 
             print("\nPressiona qualquer tecla para sair...", end="", flush=True)

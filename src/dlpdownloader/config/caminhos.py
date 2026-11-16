@@ -5,9 +5,16 @@ import sys
 from pathlib import Path
 
 
+def em_distribuicao() -> bool:
+    """Reconhece o PyInstaller e o modo standalone do Nuitka."""
+    return bool(
+        getattr(sys, "frozen", False) or getattr(globals().get("__compiled__"), "standalone", False)
+    )
+
+
 def raiz_projeto() -> Path:
     """Retorna a raiz externa, independente do diretório de trabalho."""
-    if getattr(sys, "frozen", False):
+    if em_distribuicao():
         return Path(sys.executable).resolve().parent
     return Path(__file__).resolve().parents[3]
 

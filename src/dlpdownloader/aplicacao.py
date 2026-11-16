@@ -3,6 +3,7 @@
 import logging
 import os
 import sys
+import threading
 from logging.handlers import RotatingFileHandler
 
 from PyQt6.QtCore import QStandardPaths, QTimer, QUrl
@@ -56,7 +57,11 @@ def main() -> int:
         )
         return 1
     app.setApplicationName("DLPDownloader")
-    app.setWindowIcon(QIcon(str(caminho_icone())))
+    icone = QIcon(str(caminho_icone()))
+    if os.environ.get("DLP_SMOKE_TEST") and icone.pixmap(16, 16).isNull():
+        trava.__exit__(None, None, None)
+        return 1
+    app.setWindowIcon(icone)
     aplicar_tema(app)
     dados = diretorio_dados()
     try:
@@ -70,7 +75,15 @@ def main() -> int:
     padrao = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DownloadLocation))
     janela = JanelaPrincipal(caminho_icone())
     preferencias = Preferencias(dados / "config.json", padrao)
+    thread_interface = threading.get_ident()
     reparo_solicitado = False
+
+    def verificar_em_segundo_plano(cancelar):
+        if os.environ.get("DLP_SMOKE_TEST") and threading.get_ident() == thread_interface:
+            raise ErroAplicacao(
+                "A verificação de ferramentas foi executada na thread da interface."
+            )
+        return verificar(raiz_projeto(), cancelar)
 
     def solicitar_reparo() -> bool:
         nonlocal reparo_solicitado
@@ -82,7 +95,7 @@ def main() -> int:
     controlador = ControladorDownload(
         janela,
         preferencias,
-        lambda cancelar: verificar(raiz_projeto(), cancelar),
+        verificar_em_segundo_plano,
         ServicoDownload,
         solicitar_reparo,
     )

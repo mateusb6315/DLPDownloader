@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+from functools import partial
 from pathlib import Path
 
 from dlpdownloader.modelos.erros import ErroAplicacao
@@ -47,7 +48,7 @@ def publicar(arquivo: Path, destino: Path) -> None:
     arquivo.rename(destino)
 
 
-def gerar_full(beta: bool, versao: str | None, destino: Path | None) -> Path:
+def gerar_full(beta: bool, versao: str | None, destino: Path | None, *, compilador=None) -> Path:
     if os.name != "nt":
         raise RuntimeError("A distribuição suportada deve ser compilada no Windows.")
     programas = Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
@@ -70,7 +71,7 @@ def gerar_full(beta: bool, versao: str | None, destino: Path | None) -> Path:
     instalador = destino / f"{base}-setup.exe"
     if arquivo_7z.exists() or instalador.exists():
         raise FileExistsError("Já existe um arquivo 7z ou instalador com esse nome no destino.")
-    pacote = (compilar_beta if beta else compilar)(destino=destino, versao=nome)
+    pacote = (compilador or (compilar_beta if beta else compilar))(destino=destino, versao=nome)
     with tempfile.TemporaryDirectory(prefix=".full-", dir=destino) as pasta:
         temporario = Path(pasta)
         arquivo = temporario / f"{base}.7z"
@@ -94,13 +95,21 @@ def gerar_full(beta: bool, versao: str | None, destino: Path | None) -> Path:
     return pacote
 
 
-def main(beta: bool) -> int:
+def main(
+    beta: bool, *, compilador=None, versao_padrao: str | None = None, downloads_nuitka: bool = False
+) -> int:
     parser = argparse.ArgumentParser(description="Compila pacote, arquivo 7z e instalador.")
-    parser.add_argument("--versao", help="Nome beta ou versão numérica de produção")
+    parser.add_argument("--versao", default=versao_padrao, help="Nome beta ou versão de produção")
     parser.add_argument("--destino", type=Path, help="Pasta de saída")
+    if downloads_nuitka:
+        parser.add_argument(
+            "--baixar-compilador", action="store_true", help="Permitir que o Nuitka baixe o Zig"
+        )
     args = parser.parse_args()
+    if downloads_nuitka and args.baixar_compilador:
+        compilador = partial(compilador, baixar_compilador=True)
     try:
-        gerar_full(beta, args.versao, args.destino)
+        gerar_full(beta, args.versao, args.destino, compilador=compilador)
     except KeyboardInterrupt:
         status("Compilação interrompida pelo usuário.")
         return 130

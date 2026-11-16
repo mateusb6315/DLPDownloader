@@ -29,3 +29,13 @@ def test_diretorio_frozen_usa_executavel(monkeypatch, tmp_path):
     monkeypatch.setattr("sys.frozen", True, raising=False)
     monkeypatch.setattr("sys.executable", str(tmp_path / "App.exe"))
     assert raiz_projeto() == Path(tmp_path)
+
+
+def test_diretorio_nuitka_standalone_usa_executavel(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    from dlpdownloader.config import caminhos
+
+    monkeypatch.setattr(caminhos, "__compiled__", SimpleNamespace(standalone=True), raising=False)
+    monkeypatch.setattr("sys.executable", str(tmp_path / "DLPDownloader.exe"))
+    assert caminhos.raiz_projeto() == tmp_path

@@ -9,17 +9,26 @@ import time
 from pathlib import Path
 
 
-def validar_pacote(pacote: Path, dados: Path, limite: float = 40) -> None:
+def validar_pacote(
+    pacote: Path,
+    dados: Path,
+    limite: float = 40,
+    *,
+    plataforma: str = "offscreen",
+    versao_beta: str | None = None,
+) -> None:
     """Exige estado PRONTO sem Python/ferramentas de terceiros no PATH."""
     from dlpdownloader.servicos.processos import encerrar_arvore
 
     dados.mkdir(parents=True, exist_ok=True)
     ambiente = {
         **os.environ,
-        "QT_QPA_PLATFORM": "offscreen",
+        "QT_QPA_PLATFORM": plataforma,
         "LOCALAPPDATA": str(dados),
         "DLP_SMOKE_TEST": "1",
     }
+    for nome in ("QT_PLUGIN_PATH", "QT_QPA_PLATFORM_PLUGIN_PATH", "PYTHONPATH", "PYTHONHOME"):
+        ambiente.pop(nome, None)
     ambiente["PATH"] = str(Path(ambiente.get("SystemRoot", r"C:\Windows")) / "System32")
     log = dados / "DLPDownloader/aplicacao.log"
     with (dados / "inicializacao.stderr").open("wb") as erros:
@@ -37,6 +46,8 @@ def validar_pacote(pacote: Path, dados: Path, limite: float = 40) -> None:
             while time.monotonic() < prazo:
                 conteudo = log.read_text(encoding="utf-8") if log.exists() else ""
                 if "Estado da aplicação: PRONTO" in conteudo:
+                    if versao_beta and f"Versão da aplicação: {versao_beta} (beta)" not in conteudo:
+                        raise RuntimeError(f"A distribuição não informou {versao_beta} (beta).")
                     subprocess.run(
                         [
                             str(pacote / "DLPDownloader.exe"),

@@ -1,10 +1,11 @@
-"""Identifica a build pelo JSON distribuído ao lado do executável."""
+"""Identifica a versão incorporada e mantém suporte ao JSON de builds antigas."""
 
 import json
 import re
 import sys
 from pathlib import Path
 
+from dlpdownloader.config.caminhos import em_distribuicao
 from dlpdownloader.modelos.erros import ErroAplicacao
 
 ERRO_VERSAO = (
@@ -33,7 +34,7 @@ def ler_versao(caminho: Path) -> str:
 
 def versao_atual() -> str | None:
     """None representa execução por fonte, sem versão de distribuição desktop."""
-    if not getattr(sys, "frozen", False):
+    if not em_distribuicao():
         return None
     try:
         import versao_build
@@ -49,7 +50,7 @@ def versao_atual() -> str | None:
 
 def build_beta() -> bool:
     """Identifica builds beta sem criar metadados externos."""
-    if not getattr(sys, "frozen", False):
+    if not em_distribuicao():
         return False
     try:
         import versao_build

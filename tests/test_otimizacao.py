@@ -3,6 +3,9 @@
 import json
 import shutil
 import threading
+from contextlib import nullcontext
+from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -102,3 +105,34 @@ def test_falha_diagnostico_retorna_erro_sem_dialogo(tmp_path, monkeypatch):
         "sucesso": False,
         "erro": "RuntimeError",
     }
+
+
+@pytest.mark.parametrize(
+    "assinado,falha,comprimido", [(True, False, False), (False, True, False), (False, False, True)]
+)
+def test_upx_preserva_extensao_assinada_ou_incompativel(
+    tmp_path, monkeypatch, assinado, falha, comprimido
+):
+    pefile = pytest.importorskip("pefile")
+    from scripts import nuitka_beta
+
+    pasta = tmp_path / "pacote/PyQt6"
+    pasta.mkdir(parents=True)
+    extensao = pasta / "QtGui.pyd"
+    extensao.write_bytes(b"original")
+    diretorios = [None] * 4 + [SimpleNamespace(Size=int(assinado))]
+    pe = SimpleNamespace(OPTIONAL_HEADER=SimpleNamespace(DATA_DIRECTORY=diretorios))
+    monkeypatch.setattr(pefile, "PE", lambda *args, **kwargs: nullcontext(pe))
+    chamadas = []
+
+    def executar(comando, _):
+        chamadas.append(comando)
+        if "-o" in comando:
+            Path(comando[comando.index("-o") + 1]).write_bytes(b"menor")
+        elif falha:
+            raise RuntimeError("Compressão incompatível")
+
+    monkeypatch.setattr(nuitka_beta, "executar_build", executar)
+    nuitka_beta.comprimir_extensoes_qt("upx", pasta.parent)
+    assert len(chamadas) == (0 if assinado else 2)
+    assert extensao.read_bytes() == (b"menor" if comprimido else b"original")

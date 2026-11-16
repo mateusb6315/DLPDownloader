@@ -138,12 +138,23 @@ As distribuições incorporam a versão base ao executável, sem arquivo `versio
 beta numéricos usam essa versão base e outros nomes usam a versão de `pyproject.toml`. Uma
 release estável da mesma versão é oferecida para builds beta. O smoke test não acessa a rede.
 
-`scripts/betafull.py` e `scripts/compilarfull.py` reutilizam os compiladores existentes e
-geram também 7z e instalador, exigindo 7-Zip e Inno Setup instalados. A busca no
+`scripts/betafull.py` usa Nuitka para a beta completa; `scripts/compilarfull.py` usa
+o compilador de produção com PyInstaller. Ambos geram também 7z e instalador e
+exigem 7-Zip e Inno Setup instalados. A busca no
 PATH usa `ISCC`; os caminhos padrão consultados pelo código são do Inno Setup 7.
 Os instaladores beta e estável têm identidades e pastas separadas, exigem administrador
 e permitem escrita por usuários locais na pasta instalada para o reparador. Atualizações
 não removem arquivos obsoletos. Os artefatos já publicados são preservados em falhas.
+
+A beta completa usa MSVC x64 e SDK do Windows por padrão. Com `--baixar-compilador`,
+o Nuitka usa Zig e pode baixar suas dependências de compilação. O Nuitka
+mantém seu layout standalone com o executável na raiz e `vendor` externo; o reparador
+é onefile. O MSVC usa `/O1` para priorizar tamanho. O UPX atua nos dois executáveis do
+projeto e nas extensões conhecidas do PyQt6 sem assinatura. O script mantém a extensão
+original se a compressão falhar ou não reduzir o tamanho. Preserve os binários assinados,
+a integridade de `vendor` e a seleção explícita dos plugins
+Qt e valide a inicialização com a plataforma Windows. A beta completa aceita
+`--versao` e `--destino`. O nome padrão é `1.3.2-beta2`.
 
 A interface realça controles sob o cursor e campos com foco. `visoes/controles_animados.py`
 anima a borda das seleções e a pintura do botão Baixar; preserve sua área de clique e os

@@ -30,6 +30,20 @@ def test_pausa_terminal_aceita_qualquer_tecla(monkeypatch, capsys):
     assert teclas == ["x"] and "Pressiona qualquer tecla para sair" in capsys.readouterr().out
 
 
+def test_verificacao_do_pacote_nao_espera_tecla_em_console(monkeypatch):
+    import msvcrt
+
+    class Entrada:
+        def isatty(self):
+            return True
+
+    monkeypatch.setattr(repair, "executar", lambda: 0)
+    monkeypatch.setattr(repair.sys, "argv", ["repair.exe", "--verificar-empacotamento"])
+    monkeypatch.setattr(repair.sys, "stdin", Entrada())
+    monkeypatch.setattr(msvcrt, "getwch", lambda: pytest.fail("A verificação não deve pausar"))
+    assert repair.main() == 0
+
+
 def test_aguarda_encerramento_real_do_processo():
     import sys
     import time

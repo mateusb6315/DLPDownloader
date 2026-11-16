@@ -9,6 +9,10 @@
 - Os scripts `betafull.py` e `compilarfull.py` geram também 7z e instalador. A busca
   automática do Inno Setup usa `ISCC` no PATH ou caminhos padrão do Inno Setup 7;
   os instaladores beta e de produção têm identidades e pastas separadas.
+- A beta completa usa Nuitka com MSVC ou Zig (`--baixar-compilador`) e UPX nos dois
+  EXEs próprios e nas extensões conhecidas do PyQt6 sem assinatura. O modo standalone
+  mantém `vendor` externo. A beta simples e a produção
+  usam PyInstaller.
 - Mensagens de commits/releases devem explicar a mudança em palavras que façam sentido
   para quem usa o aplicativo, evitando descrições internas ou técnicas demais. Exemplo:
   `1.0.0: reformulação na interface e arquitetura`.

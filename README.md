@@ -188,8 +188,9 @@ Python, Qt, yt-dlp, FFmpeg e Deno instalados separadamente no computador de dest
 | GitHub CLI (`gh`) | Opcional, para PR e merge remoto pelos scripts |
 | Internet | Preparação das ferramentas e download dos conteúdos |
 
-PyQt6 e PyYAML são as dependências de execução Python. PyInstaller, Pillow, pytest, pytest-qt,
-Ruff e build ficam no grupo de desenvolvimento. O processamento usa os executáveis portáteis, sem depender da biblioteca Python `yt-dlp`.
+PyQt6 é a dependência de execução Python. Os compiladores e ferramentas de verificação
+ficam no grupo de desenvolvimento. O processamento usa os executáveis portáteis,
+sem depender da biblioteca Python `yt-dlp`.
 
 ### Preparar e executar o código-fonte
 
@@ -352,6 +353,9 @@ Para repetir em um pacote existente:
 
 Distribua **a pasta inteira**. Valide em Windows sem Python ou ferramentas globais,
 incluindo download, junção, cancelamento, destino com espaços e persistência.
+
+Para gerar a beta completa com Nuitka, UPX, 7-Zip e Inno Setup, consulte
+[os pré-requisitos e o comando do `betafull.py`](scripts/README.md#beta-completa-com-nuitka).
 
 Para wheel/sdist: `.\.venv\Scripts\python.exe -m poetry build`. Esses artefatos Python
 não substituem o pacote desktop com `vendor/`.
