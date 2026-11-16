@@ -166,7 +166,7 @@ Ao alterar esses controles, verifique foco, estados habilitados, cliques e redim
 
 `services/downloader.py` fornece `ServicoDownload.baixar`, com pedido imutável,
 Event de cancelamento, callback de progresso e confirmação de substituição. O fluxo
-porta MP4/MKV; a entrada atual continua em `src/dlpdownloader` durante a migração.
+porta MP4/MKV e os perfis de áudio; a entrada atual continua em `src/dlpdownloader` durante a migração.
 `services/yt_dlp.py` é um adaptador independente: comando, eventos estruturados e
 validação do único resultado contido no staging. Contratos puros ficam em
 `services/_models`; processos, arquivos e integridade em `services/_infra`, sem Qt
@@ -176,4 +176,8 @@ confirmação antes de substituir e a limpeza do staging em falhas.
 `tests/test_downloader.py` exercita a fachada com ferramentas portáteis, mídia
 sintética e servidor localhost, sem mocks, usando o marcador `externo`. Verifica
 MP4/MKV, junção DASH, progresso, substituição, cancelamento durante progresso e
-falha de remux. `scripts/verificar.py` inclui `services` nos checks de Ruff.
+falha de remux. Também verifica codecs e contêineres de áudio com FFprobe, todos os
+bitrates permitidos, recusa de substituição e cancelamento na finalização do áudio.
+`services/ffmpeg.py` converte diretamente somente pedidos com bitrate explícito;
+a extração dos demais perfis continua no yt-dlp. Os adaptadores não importam um ao
+outro. `scripts/verificar.py` inclui `services` nos checks de Ruff.

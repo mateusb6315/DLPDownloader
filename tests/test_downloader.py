@@ -160,9 +160,10 @@ def test_junta_duas_faixas_reais(midia, tmp_path, perfil):
     assert list(tmp_path.iterdir()) == [resultado]
 
 
-def test_recusa_preserva_e_confirmacao_substitui(midia, tmp_path):
+@pytest.mark.parametrize("perfil,bitrate", [("mp4", None), ("mp3", 192)])
+def test_recusa_preserva_e_confirmacao_substitui(midia, tmp_path, perfil, bitrate):
     ferramentas, url = midia
-    pedido = SolicitacaoDownload(url, "mp4", None, tmp_path)
+    pedido = SolicitacaoDownload(url, perfil, bitrate, tmp_path)
     servico = ServicoDownload(ferramentas)
     resultado = servico.baixar(pedido, threading.Event(), lambda e: None)
     original = resultado.read_bytes()
@@ -201,3 +202,111 @@ def test_falha_de_remux_apos_progresso_nao_publica(midia, tmp_path):
         ServicoDownload(ferramentas).baixar(pedido, threading.Event(), eventos.append)
     assert any(e.etapa == "baixando" for e in eventos)
     assert not list(tmp_path.iterdir())
+
+
+def test_audio_original_preserva_codec_sem_video(midia, tmp_path):
+    ferramentas, url = midia
+    pedido = SolicitacaoDownload(url, "original", None, tmp_path)
+    eventos = []
+    resultado = ServicoDownload(ferramentas).baixar(pedido, threading.Event(), eventos.append)
+    dados = sondar_audio(ferramentas, resultado)
+    assert resultado.name == "fonte [fonte].m4a"
+    assert len(dados["streams"]) == 1
+    assert dados["streams"][0]["codec_name"] == "aac"
+    assert dados["streams"][0]["channels"] == 1
+    assert any(e.etapa == "baixando" for e in eventos)
+    assert all(e.percentual is None for e in eventos if e.etapa == "finalizando")
+    assert list(tmp_path.iterdir()) == [resultado]
+
+
+def sondar_audio(ferramentas, resultado):
+    return json.loads(
+        subprocess.check_output(
+            [
+                str(ferramentas.ffprobe),
+                "-v",
+                "error",
+                "-show_streams",
+                "-show_format",
+                "-of",
+                "json",
+                str(resultado),
+            ],
+            creationflags=subprocess.CREATE_NO_WINDOW,
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    "perfil,bitrate,codec,container",
+    [
+        ("mp3", 128, "mp3", "mp3"),
+        ("mp3", 192, "mp3", "mp3"),
+        ("mp3", 256, "mp3", "mp3"),
+        ("mp3", 320, "mp3", "mp3"),
+        ("m4a", 128, "aac", "mov,mp4,m4a,3gp,3g2,mj2"),
+        ("m4a", 192, "aac", "mov,mp4,m4a,3gp,3g2,mj2"),
+        ("m4a", 256, "aac", "mov,mp4,m4a,3gp,3g2,mj2"),
+        ("opus", 96, "opus", "ogg"),
+        ("opus", 128, "opus", "ogg"),
+        ("opus", 160, "opus", "ogg"),
+        ("opus", 192, "opus", "ogg"),
+    ],
+)
+def test_audio_com_bitrate_explicito(midia, tmp_path, perfil, bitrate, codec, container):
+    ferramentas, url = midia
+    pedido = SolicitacaoDownload(url, perfil, bitrate, tmp_path)
+    eventos = []
+    resultado = ServicoDownload(ferramentas).baixar(pedido, threading.Event(), eventos.append)
+    dados = sondar_audio(ferramentas, resultado)
+    assert resultado.name == f"fonte [fonte] - {bitrate}k.{perfil}"
+    assert len(dados["streams"]) == 1
+    assert dados["streams"][0]["codec_name"] == codec
+    assert dados["streams"][0]["channels"] == 1
+    assert dados["format"]["format_name"] == container
+    if perfil == "mp3":
+        assert int(dados["streams"][0]["bit_rate"]) == bitrate * 1000
+    assert eventos[-1].etapa == "finalizando"
+    assert eventos[-1].percentual is None
+    assert list(tmp_path.iterdir()) == [resultado]
+
+
+@pytest.mark.parametrize(
+    "perfil,codec,container",
+    [
+        ("m4a", "aac", "mov,mp4,m4a,3gp,3g2,mj2"),
+        ("flac", "flac", "flac"),
+        ("wav", "pcm_s16le", "wav"),
+    ],
+)
+def test_audio_sem_bitrate_explicito(midia, tmp_path, perfil, codec, container):
+    ferramentas, url = midia
+    pedido = SolicitacaoDownload(url, perfil, None, tmp_path)
+    resultado = ServicoDownload(ferramentas).baixar(pedido, threading.Event(), lambda e: None)
+    dados = sondar_audio(ferramentas, resultado)
+    assert resultado.name == f"fonte [fonte].{perfil}"
+    assert len(dados["streams"]) == 1
+    assert dados["streams"][0]["codec_name"] == codec
+    assert dados["streams"][0]["channels"] == 1
+    assert dados["format"]["format_name"] == container
+    assert list(tmp_path.iterdir()) == [resultado]
+
+
+def test_cancelamento_finalizando_audio_preserva_anterior(midia, tmp_path):
+    ferramentas, url = midia
+    pedido = SolicitacaoDownload(url, "mp3", 128, tmp_path)
+    anterior = tmp_path / "fonte [fonte] - 128k.mp3"
+    anterior.write_bytes(b"arquivo anterior")
+    cancelamento = threading.Event()
+    eventos = []
+
+    def receber(evento):
+        eventos.append(evento)
+        if evento.etapa == "finalizando":
+            cancelamento.set()
+
+    with pytest.raises(Cancelado):
+        ServicoDownload(ferramentas).baixar(pedido, cancelamento, receber, lambda: True)
+    assert eventos[-1].etapa == "finalizando"
+    assert anterior.read_bytes() == b"arquivo anterior"
+    assert list(tmp_path.iterdir()) == [anterior]

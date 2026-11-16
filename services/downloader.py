@@ -10,8 +10,9 @@ from services._infra.arquivos import validar_destino
 from services._infra.dependencias import Ferramentas
 from services._infra.processos import executar
 from services._models.download import SolicitacaoDownload
-from services._models.erros import Cancelado, ErroAplicacao, ErroDestino, SubstituicaoRecusada
+from services._models.erros import Cancelado, ErroDestino, SubstituicaoRecusada
 from services._models.progresso import EventoProgresso
+from services.ffmpeg import converter
 from services.yt_dlp import baixar_faixas
 
 
@@ -56,8 +57,6 @@ class ServicoDownload:
     ) -> Path:
         """Valida e publica somente após a confirmação do adaptador."""
         pedido.validar()
-        if pedido.perfil not in {"mp4", "mkv"}:
-            raise ErroAplicacao("Este fluxo de mídia aceita vídeo MP4 ou MKV.")
         validar_destino(pedido.destino)
         try:
             with tempfile.TemporaryDirectory(prefix=".dlp-", dir=pedido.destino) as pasta:
@@ -69,6 +68,15 @@ class ServicoDownload:
                     progresso,
                     self.executar_processo,
                 )
+                if pedido.bitrate:
+                    origem = converter(
+                        pedido,
+                        origem,
+                        self.ferramentas,
+                        cancelamento,
+                        progresso,
+                        self.executar_processo,
+                    )
                 return publicar(
                     origem, pedido.destino / origem.name, cancelamento, confirmar_substituicao
                 )
