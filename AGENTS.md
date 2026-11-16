@@ -160,3 +160,20 @@ A interface realça controles sob o cursor e campos com foco. `visoes/controles_
 anima a borda das seleções e a pintura do botão Baixar; preserve sua área de clique e os
 sinais de ação. O menu Opções mantém margem direita proporcional à largura da janela.
 Ao alterar esses controles, verifique foco, estados habilitados, cliques e redimensionamento.
+
+
+## Fachada de mídia na arquitetura raiz
+
+`services/downloader.py` fornece `ServicoDownload.baixar`, com pedido imutável,
+Event de cancelamento, callback de progresso e confirmação de substituição. O fluxo
+porta MP4/MKV; a entrada atual continua em `src/dlpdownloader` durante a migração.
+`services/yt_dlp.py` é um adaptador independente: comando, eventos estruturados e
+validação do único resultado contido no staging. Contratos puros ficam em
+`services/_models`; processos, arquivos e integridade em `services/_infra`, sem Qt
+ou imports da árvore anterior. A publicação pertence à fachada e preserva a
+confirmação antes de substituir e a limpeza do staging em falhas.
+
+`tests/test_downloader.py` exercita a fachada com ferramentas portáteis, mídia
+sintética e servidor localhost, sem mocks, usando o marcador `externo`. Verifica
+MP4/MKV, junção DASH, progresso, substituição, cancelamento durante progresso e
+falha de remux. `scripts/verificar.py` inclui `services` nos checks de Ruff.
