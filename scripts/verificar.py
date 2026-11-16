@@ -13,8 +13,8 @@ def main() -> int:
     ambiente = {**os.environ, "QT_QPA_PLATFORM": "offscreen"}
     raiz = Path(__file__).resolve().parents[1]
     comandos = [
-        ["ruff", "check", "src", "scripts", "tests", "main.py"],
-        ["ruff", "format", "--check", "src", "scripts", "tests", "main.py"],
+        ["ruff", "check", "src", "services", "scripts", "tests", "main.py"],
+        ["ruff", "format", "--check", "src", "services", "scripts", "tests", "main.py"],
         ["pytest", "-q", "-m", "not externo"],
     ]
     for comando in comandos:
