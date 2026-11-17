@@ -213,3 +213,23 @@ Para alterações da janela ou do mediador, execute `tests/test_interface.py` e
 `tests/test_integracao.py` em uma sessão Windows interativa com as ferramentas
 portáteis preparadas. Use o marcador `interface_windows` e `QT_QPA_PLATFORM=windows`.
 Use `tests/test_controller.py` na suíte padrão para falhas e encerramento controlados.
+
+## Reparo na arquitetura raiz
+
+O bootstrap mantém `uso.lock` compartilhado na pasta de dados durante a sessão.
+Ao aceitar a oferta de reparo, o mediador bloqueia o download e solicita o
+fechamento seguro. Depois de encerrar o loop Qt e liberar o bloqueio, o bootstrap
+abre `vendor/repair.exe` em console separado com o PID do aplicativo.
+
+`services/repair_console.py` é a entrada onefile do reparador. Usa
+`services/repair.py` e a infraestrutura comum de preparo e instalação em
+`services/_infra/`, independente de Qt. Incorpore `manifest.json` e
+`licenses/README.md` e valide o binário com `--verificar-empacotamento`, sem
+baixar ferramentas ou pausar o console. `scripts/repair.py` mantém a entrada
+dos compiladores anteriores durante a migração.
+
+O reparador aguarda o PID, verifica processos antigos e mantém o bloqueio exclusivo
+durante o preparo, a validação por SHA-256 e a troca com recuperação. A suíte
+padrão verifica o reparador, a decisão na janela e a restauração em falhas com
+recursos temporários. Use `tests/test_repair.py`, `tests/test_controller.py` e
+`tests/test_otimizacao.py` nesses fluxos.
