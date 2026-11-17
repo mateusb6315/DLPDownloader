@@ -309,6 +309,13 @@ distribuição desktop como artefato.
 
 ## Compilação
 
+Os scripts da arquitetura raiz usam Nuitka. Execute o seletor
+`poetry run python scripts/nuitka.py` e escolha **1 — Beta** ou **2 — Release**.
+Para automatizar a release, execute `poetry run python scripts/release.py --versao 1.3.2 --zip`.
+Consulte os pré-requisitos, destinos e artefatos em [scripts/README.md](scripts/README.md#compilação-nuitka-da-arquitetura-raiz).
+
+### Compilação da arquitetura anterior
+
 Para desenvolvimento e testes locais, com dependências e ferramentas preparadas:
 
 ```powershell
@@ -364,7 +371,7 @@ Distribua **a pasta inteira**. Valide em Windows sem Python ou ferramentas globa
 incluindo download, junção, cancelamento, destino com espaços e persistência.
 
 Para gerar a beta completa com Nuitka, UPX, 7-Zip e Inno Setup, consulte
-[os pré-requisitos e o comando do `betafull.py`](scripts/README.md#beta-completa-com-nuitka).
+[os pré-requisitos e o comando do `betafull.py`](scripts/README.md#beta-completa-da-arquitetura-anterior).
 
 Para wheel/sdist: `.\.venv\Scripts\python.exe -m poetry build`. Esses artefatos Python
 não substituem o pacote desktop com `vendor/`.

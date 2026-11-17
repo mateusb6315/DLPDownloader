@@ -10,6 +10,7 @@ clone com o pacote instalado; cada script possui `--help`.
 | `verificar.py` | Executar lint, testes e verificações de arquitetura |
 | `nuitka.py` | Selecionar o canal de compilação da arquitetura raiz |
 | `beta.py` | Gerar a pasta portátil, o 7z e o instalador beta da arquitetura raiz |
+| `release.py` | Gerar a pasta portátil, o 7z e o instalador estável da arquitetura raiz, com ZIP opcional |
 | `compilar.py` | Publicar distribuição Windows completa, sem `.spec` como entrada |
 | `compilar_beta.py` | Compilar pacote local de desenvolvimento sem relatório de produção |
 | `compilarfull.py` | Gerar pacote de produção, arquivo 7z e instalador |
@@ -50,23 +51,29 @@ locais também podem alterar os executáveis. Atualizações substituem arquivos
 mas não removem arquivos obsoletos de versões anteriores. Preferências permanecem em
 `%LOCALAPPDATA%` e não são removidas pelo desinstalador.
 
-## Beta da arquitetura raiz com Nuitka
+## Compilação Nuitka da arquitetura raiz
 
 Com as ferramentas portáteis preparadas, execute `poetry run python scripts/nuitka.py`
-e escolha **1 — Beta**. A opção Release fica reservada durante a migração. Para chamar
-a beta diretamente, informe um nome válido para arquivo Windows:
+e escolha **1 — Beta** ou **2 — Release**. Para executar diretamente:
 
 ```powershell
 poetry run python scripts/beta.py --versao 1.3.2-beta3
+poetry run python scripts/release.py --versao 1.3.2 --zip
 ```
 
-Sem `--versao`, o script pede um nome. O aplicativo incorpora a versão base numérica do
-nome ou a versão de `pyproject.toml`, quando o nome não começa por uma base numérica.
-O Windows x64 precisa de MSVC e do SDK do Windows, UPX no PATH, 7-Zip e Inno Setup 7.
-`--baixar-compilador` permite que o Nuitka use e baixe Zig. `--destino` muda o diretório
-de saída, que por padrão é `releases/beta/`.
+A beta aceita um nome de arquivo válido no Windows e incorpora a versão base numérica
+desse nome ou a versão de `pyproject.toml` para nomes livres. A release exige
+`X.Y.Z` e incorpora a versão no canal estável. Omitir `--versao` abre a pergunta
+interativa do canal.
+
+Ambos exigem MSVC x64 com SDK do Windows, 7-Zip e Inno Setup. A beta também exige
+UPX no PATH. `--baixar-compilador` permite que o Nuitka use e baixe Zig. Com
+`--destino`, escolha a pasta de saída. O padrão é `releases/beta/` para a beta e
+`releases/` para a release.
 
 A pasta standalone, o 7z e o instalador são promovidos depois da validação em staging.
+Na release, `--zip` inclui um ZIP da pasta inteira na mesma publicação. O instalador
+estável usa a identidade da versão anterior e reaproveita sua pasta de instalação.
 O build exige que a janela com o plugin Windows carregue o ícone e atinja PRONTO,
 que o executável processe os oito perfis com mídia sintética em localhost e que o
 reparador consiga ler seus recursos incorporados. Distribua a pasta portátil inteira.

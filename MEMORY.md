@@ -11,8 +11,10 @@
   os instaladores beta e de produção têm identidades e pastas separadas.
 - A beta completa usa Nuitka com MSVC ou Zig (`--baixar-compilador`) e UPX nos dois
   EXEs próprios e nas extensões conhecidas do PyQt6 sem assinatura. O modo standalone
-  mantém `vendor` externo. A beta simples e a produção
-  usam PyInstaller.
+  mantém `vendor` externo. A beta simples e a produção da arquitetura anterior
+  usam PyInstaller. Na arquitetura raiz, `scripts/nuitka.py` seleciona a beta ou a
+  release. `scripts/release.py` gera a pasta portátil, 7z, instalador e ZIP opcional
+  sem UPX, com o mesmo AppId estável.
 - Mensagens de commits/releases devem explicar a mudança em palavras que façam sentido
   para quem usa o aplicativo, evitando descrições internas ou técnicas demais. Exemplo:
   `1.0.0: reformulação na interface e arquitetura`.
