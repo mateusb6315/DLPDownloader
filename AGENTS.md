@@ -71,7 +71,8 @@ Python suportado: 3.13 ou 3.14, com Poetry 2.x. Em PowerShell, com a `.venv` pre
 .\.venv\Scripts\python.exe -m pytest tests\test_interface_controlador.py -v
 ```
 
-`verificar.py` executa Ruff, verificação de formatação e testes sem o marcador `externo`.
+`verificar.py` executa Ruff, verificação de formatação e testes sem os marcadores
+`externo` e `interface_windows`.
 Escolha verificações proporcionais à alteração; acrescente testes de regressão relevantes
 em `tests/`. Para alterações de comandos de mídia ou codecs, considere também
 `.\.venv\Scripts\python.exe -m pytest -q -m externo`: exige ferramentas preparadas e
@@ -180,4 +181,23 @@ falha de remux. Também verifica codecs e contêineres de áudio com FFprobe, to
 bitrates permitidos, recusa de substituição e cancelamento na finalização do áudio.
 `services/ffmpeg.py` converte diretamente somente pedidos com bitrate explícito;
 a extração dos demais perfis continua no yt-dlp. Os adaptadores não importam um ao
-outro. `scripts/verificar.py` inclui `services` nos checks de Ruff.
+outro.
+
+## Janela na arquitetura raiz
+
+`python -m config.bootstrap` abre a janela da arquitetura raiz a partir do checkout.
+`criar_aplicacao` recebe uma `QApplication` e, opcionalmente, a raiz das ferramentas,
+a pasta de dados e o destino padrão. Devolve a janela e o controlador para o chamador
+mostrar a janela e iniciar a verificação. Os pontos de entrada oficiais usam a árvore
+`src/dlpdownloader` durante a migração.
+
+`ui/window.py` recebe os perfis na composição e emite os dados das ações. O ícone fica
+em `ui/resources/flet.png`. `config/controller.py` recebe operações de preferência,
+validação, dependências e download por injeção. O mediador libera a janela depois de
+`QThread.finished` e do encerramento das tarefas anexadas. Qt e a árvore anterior
+ficam fora da cadeia de importação dos serviços de mídia.
+
+Para alterações da janela ou do mediador, execute `tests/test_interface.py` e
+`tests/test_integracao.py` em uma sessão Windows interativa com as ferramentas
+portáteis preparadas. Use o marcador `interface_windows` e `QT_QPA_PLATFORM=windows`.
+Use `tests/test_controller.py` na suíte padrão para falhas e encerramento controlados.
