@@ -197,6 +197,18 @@ validação, dependências e download por injeção. O mediador libera a janela 
 `QThread.finished` e do encerramento das tarefas anexadas. Qt e a árvore anterior
 ficam fora da cadeia de importação dos serviços de mídia.
 
+O mediador inicia a consulta automática e encaminha a ação do menu Opções para
+`config/update_tasks.py`. A consulta usa um trabalhador e um cancelamento próprios.
+Os diálogos de progresso permitem usar o menu enquanto o download está em andamento.
+O fechamento cancela as tarefas ativas e aguarda as duas threads. A oferta automática
+aguarda o fim do download e o fechamento de outros diálogos modais.
+
+`services/updater.py` consulta a release estável pelo GitHub e oferece à beta a estável
+da mesma versão base. `config/version.py` lê a versão incorporada, com fallback para
+`version.json` em distribuições antigas. A execução por fonte e o smoke test dispensam
+a consulta de rede. Use `tests/test_updater.py` para validar comparação, cancelamento
+e fechamento com uma consulta em andamento.
+
 Para alterações da janela ou do mediador, execute `tests/test_interface.py` e
 `tests/test_integracao.py` em uma sessão Windows interativa com as ferramentas
 portáteis preparadas. Use o marcador `interface_windows` e `QT_QPA_PLATFORM=windows`.

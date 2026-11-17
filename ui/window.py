@@ -28,6 +28,7 @@ class JanelaPrincipal(QMainWindow):
 
     download_solicitado = pyqtSignal(str, str, object, str)
     atualizacao_solicitada = pyqtSignal()
+    cancelamento_consulta_solicitado = pyqtSignal()
     pasta_solicitada = pyqtSignal(str)
     cancelamento_solicitado = pyqtSignal()
     fechamento_solicitado = pyqtSignal()
@@ -233,24 +234,32 @@ class JanelaPrincipal(QMainWindow):
         self._pode_fechar = True
         QTimer.singleShot(0, self.close)
 
-    def mostrar_consulta(self, cancelar):
-        self.consulta = DialogoProgresso(self)
-        self.consulta.etapa.setText(ATUALIZACOES["verificando"])
-        self.consulta.cancelamento_solicitado.connect(cancelar)
+    def definir_consulta_disponivel(self, disponivel: bool) -> None:
+        self.acao_atualizar.setEnabled(disponivel)
+
+    def mostrar_consulta(self) -> None:
+        self.consulta = DialogoProgresso(
+            self, ATUALIZACOES["verificando"], ATUALIZACOES["cancelando"]
+        )
+        self.consulta.cancelamento_solicitado.connect(self.cancelamento_consulta_solicitado.emit)
         self.consulta.show()
 
-    def fechar_consulta(self):
+    def definir_consulta_cancelando(self) -> None:
+        if self.consulta:
+            self.consulta.definir_cancelando()
+
+    def fechar_consulta(self) -> None:
         if self.consulta:
             self.consulta.finalizar()
             self.consulta.deleteLater()
             self.consulta = None
 
-    def informar_atualizado(self, versao):
+    def informar_atualizado(self, versao: str) -> None:
         QMessageBox.information(
             self, TITULO, f"{ATUALIZACOES['atualizado']}\nVersão atual: {versao}"
         )
 
-    def oferecer_atualizacao(self, local, remota):
+    def oferecer_atualizacao(self, local: str, remota: str) -> bool:
         caixa = QMessageBox(self)
         caixa.setWindowTitle(TITULO)
         caixa.setText(ATUALIZACOES["disponivel"])
