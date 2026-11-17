@@ -3,7 +3,6 @@
 import argparse
 import importlib.metadata
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -18,18 +17,10 @@ from dlpdownloader.modelos.erros import ErroAplicacao
 from scripts.compilar import executar_compilador, montar_comando
 from scripts.compilar_repair import compilar_repair
 from scripts.comum import RAIZ, bloqueio, status
+from scripts.comum import validar_nome as validar_nome
 from scripts.pacote import copiar_vendor
 from scripts.validar_pacote import validar_pacote
 from scripts.versao_build import preparar_versao
-
-
-def validar_nome(nome: str) -> str:
-    """Aceita nomes livres que possam ser usados como parte de arquivo Windows."""
-    if not nome or nome != nome.strip() or nome.endswith("."):
-        raise ValueError("Informe um nome não vazio, sem espaços nas extremidades ou ponto final.")
-    if re.search(r'[<>:"/\\|?*\x00-\x1f]', nome):
-        raise ValueError("O nome contém caracteres não permitidos no Windows.")
-    return nome
 
 
 def compilar_beta(

@@ -18,6 +18,7 @@ from dlpdownloader.modelos.erros import ErroAplicacao
 from dlpdownloader.servicos.arquivos import gravar_json
 from scripts.compilar_repair import compilar_repair
 from scripts.comum import RAIZ, bloqueio, status
+from scripts.comum import ambiente_compilacao as ambiente_compilacao
 from scripts.pacote import copiar_vendor, medir_pacote
 from scripts.validar_pacote import validar_pacote
 from scripts.versao_build import preparar_versao
@@ -73,25 +74,6 @@ def executar_compilador(comando: list[str], executar=subprocess.run) -> None:
         status("Últimas linhas do PyInstaller:")
         print("\n".join(((erro.stdout or "") + (erro.stderr or "")).splitlines()[-30:]))
         raise
-
-
-def ambiente_compilacao() -> dict[str, str]:
-    """Evita coletar DLLs incompatíveis de Git, Poppler ou outro software no PATH."""
-    import PyQt6
-
-    ambiente = dict(os.environ)
-    windows = Path(ambiente.get("SystemRoot", r"C:\Windows"))
-    caminhos = [
-        Path(PyQt6.__file__).parent / "Qt6/bin",
-        Path(sys.executable).parent,
-        Path(sys.base_prefix),
-        windows / "System32",
-        windows,
-    ]
-    ambiente["PATH"] = os.pathsep.join(map(str, caminhos))
-    for nome in ("QT_PLUGIN_PATH", "QT_QPA_PLATFORM_PLUGIN_PATH", "PYTHONPATH", "PYTHONHOME"):
-        ambiente.pop(nome, None)
-    return ambiente
 
 
 def solicitar_versao() -> str:

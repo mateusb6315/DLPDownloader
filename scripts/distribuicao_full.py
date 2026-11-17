@@ -4,41 +4,19 @@ import argparse
 import importlib.metadata
 import os
 import re
-import shutil
+import shutil as shutil
 import subprocess
 import tempfile
 from functools import partial
 from pathlib import Path
 
 from dlpdownloader.modelos.erros import ErroAplicacao
+from scripts._artefatos import comando_instalador
+from scripts._artefatos import executar_etapa as executar_etapa
+from scripts._artefatos import localizar_ferramenta as localizar_ferramenta
 from scripts.compilar import compilar, solicitar_versao
 from scripts.compilar_beta import compilar_beta, validar_nome
 from scripts.comum import RAIZ, status
-
-
-def localizar_ferramenta(nome: str, candidatos: list[Path]) -> Path:
-    encontrado = shutil.which(nome)
-    for caminho in ([Path(encontrado)] if encontrado else []) + candidatos:
-        if caminho.is_file():
-            return caminho.resolve()
-    raise FileNotFoundError(f"Ferramenta {nome} não encontrada. Instale-a ou inclua-a no PATH.")
-
-
-def executar_etapa(comando: list[str], **kwargs) -> None:
-    try:
-        subprocess.run(
-            comando,
-            check=True,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-            **kwargs,
-        )
-    except subprocess.CalledProcessError as erro:
-        diagnostico = "\n".join(((erro.stdout or "") + (erro.stderr or "")).splitlines()[-30:])
-        raise RuntimeError(f"Falha em {Path(comando[0]).name}:\n{diagnostico}") from erro
 
 
 def publicar(arquivo: Path, destino: Path) -> None:
@@ -80,15 +58,9 @@ def gerar_full(beta: bool, versao: str | None, destino: Path | None, *, compilad
         publicar(arquivo, arquivo_7z)
         status(f"Arquivo criado em: {arquivo_7z}")
         status("Verificando pré-requisitos para gerar o instalador…")
-        ambiente = os.environ.copy()
-        ambiente.update(
-            DLP_PACOTE=str(pacote).replace("{", "{{"),
-            DLP_VERSAO=nome.replace("{", "{{"),
-            DLP_SAIDA=str(temporario).replace("{", "{{"),
-            DLP_BETA="1" if beta else "0",
-        )
+        comando, ambiente = comando_instalador(iscc, pacote, temporario, nome, beta)
         status("Iniciando o processo…")
-        executar_etapa([str(iscc), str(RAIZ / "scripts/instalador.iss")], env=ambiente)
+        executar_etapa(comando, env=ambiente)
         publicar(temporario / "instalador.exe", instalador)
         status("Compilação concluída.")
         status(f"Instalador criado em: {instalador}")

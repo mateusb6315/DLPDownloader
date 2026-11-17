@@ -5,7 +5,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from dlpdownloader.servicos.manifesto import arquivos_previstos, ler_manifesto
+from services._infra.manifesto import arquivos_previstos, ler_manifesto
 
 
 def copiar_vendor(origem: Path, destino: Path) -> None:

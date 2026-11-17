@@ -233,3 +233,27 @@ durante o preparo, a validação por SHA-256 e a troca com recuperação. A suí
 padrão verifica o reparador, a decisão na janela e a restauração em falhas com
 recursos temporários. Use `tests/test_repair.py`, `tests/test_controller.py` e
 `tests/test_otimizacao.py` nesses fluxos.
+
+## Compilação Nuitka da arquitetura raiz
+
+Para compilar a arquitetura raiz, use `python scripts/nuitka.py` e escolha
+**1 — Beta**, ou execute `scripts/beta.py` diretamente. Consulte a seção
+“Beta da arquitetura raiz com Nuitka” em [scripts/README.md](scripts/README.md)
+para pré-requisitos, nomes e destinos. A opção **2 — Release** fica reservada
+durante a migração.
+
+`scripts/_nuitka_build.py` compila `config/bootstrap.py` em standalone e
+`services/repair_console.py` em onefile. O Nuitka é invocado a partir do
+staging para evitar que `scripts/nuitka.py` seja encontrado como compilador.
+O standalone encontra `vendor` ao lado de `sys.executable`. Preserve
+`__compiled__.containing_dir` no reparador onefile para localizar a distribuição
+fora da pasta extraída. O UPX da beta atua nos executáveis gerados e nas extensões
+elegíveis do PyQt6.
+
+`scripts/_distribuicao_nuitka.py` valida o pacote e prepara a pasta portátil,
+o 7z e o instalador Inno em staging antes de publicá-los no destino. O smoke
+usa o plugin Windows, PATH restrito, `LOCALAPPDATA` isolado e desativa a consulta
+de releases. Após verificar o ícone, o estado PRONTO e a versão, chama o mesmo
+executável com `--verificar-midia <dados>` e exige os oito perfis no resultado
+JSON. A mídia sintética é servida em localhost. O reparador valida os recursos
+incorporados com `--verificar-empacotamento`.
