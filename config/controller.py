@@ -7,6 +7,7 @@ from pathlib import Path
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSlot
 
 from config.presentation import formatar_detalhes
+from config.update_tasks import ConsultaAtualizacoes
 from config.worker import Trabalhador
 from services._models.download import ATIVOS, Estado, SolicitacaoDownload, validar_transicao
 from services._models.erros import ErroAplicacao
@@ -29,6 +30,8 @@ class ControladorDownload(QObject):
         criar_servico,
         solicitar_reparo=None,
         encerrar_tarefas=lambda: True,
+        consultar_atualizacao=None,
+        abrir_release=lambda _url: False,
     ):
         super().__init__(janela)
         self.janela = janela
@@ -49,6 +52,15 @@ class ControladorDownload(QObject):
         self._substituicao_pendente = None
         self._terminal = None
         self._tipo_tarefa = "ambiente"
+        self._atualizacoes = None
+        if consultar_atualizacao is not None:
+            self._atualizacoes = ConsultaAtualizacoes(
+                janela,
+                consultar_atualizacao,
+                abrir_release,
+                lambda: self.estado not in ATIVOS and self.estado != Estado.VERIFICANDO,
+            )
+            self._atualizacoes.encerrada.connect(self._concluir_fechamento)
         janela.download_solicitado.connect(self.iniciar)
         janela.pasta_solicitada.connect(self.escolher_pasta)
         janela.cancelamento_solicitado.connect(self.cancelar)
@@ -57,8 +69,12 @@ class ControladorDownload(QObject):
 
     def inicializar(self) -> None:
         """Abre a GUI antes da verificação e leitura de preferências."""
+        if self._fechar:
+            return
         self._transicionar(Estado.VERIFICANDO)
         self._executar_tarefa(self._carregar_ambiente)
+        if self._atualizacoes is not None:
+            self._atualizacoes.iniciar()
 
     def _carregar_ambiente(self, cancelar, _progresso):
         preferencias = self.carregar_preferencias()
@@ -89,7 +105,7 @@ class ControladorDownload(QObject):
     @pyqtSlot(str, str, object, str)
     def iniciar(self, url: str, perfil: str, bitrate: int | None, destino: str) -> None:
         """Ignora ações repetidas e valida antes de criar trabalho."""
-        if self.estado != Estado.PRONTO or self.thread is not None:
+        if self._fechar or self.estado != Estado.PRONTO or self.thread is not None:
             return
         pedido = SolicitacaoDownload(url, perfil, bitrate, Path(destino))
         try:
@@ -109,7 +125,7 @@ class ControladorDownload(QObject):
     @pyqtSlot(str)
     def escolher_pasta(self, inicial: str) -> None:
         """Cancela sem erro; valida e salva a seleção imediatamente."""
-        if self.thread is not None:
+        if self._fechar or self.thread is not None:
             return
         escolha = self.janela.escolher_diretorio(inicial)
         if not escolha:
@@ -245,10 +261,12 @@ class ControladorDownload(QObject):
     @pyqtSlot()
     def fechar(self) -> None:
         """Adia fechamento até cleanup sem bloquear a GUI esperando o serviço."""
+        if self._confirmando_fechamento:
+            return
         if self.thread is None:
             self._concluir_fechamento()
             return
-        if self._fechar or self._confirmando_fechamento:
+        if self._fechar:
             return
         self._confirmando_fechamento = True
         try:
@@ -258,13 +276,17 @@ class ControladorDownload(QObject):
         if aceito:
             self._fechar = True
             self.cancelar()
+            self._concluir_fechamento()
         if self._substituicao_pendente is not None:
             resposta = self._substituicao_pendente
             self._substituicao_pendente = None
             self._perguntar_substituicao(resposta)
-        if self.thread is None:
+        if self.thread is None and not aceito:
             self._apresentar_resultado()
 
     def _concluir_fechamento(self) -> None:
-        if self.encerrar_tarefas():
+        self._fechar = True
+        self.janela.definir_ocupada(True)
+        consulta_encerrada = self._atualizacoes is None or self._atualizacoes.encerrar()
+        if self.thread is None and consulta_encerrada and self.encerrar_tarefas():
             self.janela.permitir_fechamento()

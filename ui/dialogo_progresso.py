@@ -12,15 +12,18 @@ class DialogoProgresso(QDialog):
 
     cancelamento_solicitado = pyqtSignal()
 
-    def __init__(self, pai):
+    def __init__(
+        self, pai, texto_inicial=TEXTOS["progresso"], texto_cancelamento=TEXTOS["cancelando"]
+    ):
         super().__init__(pai)
         self.setWindowTitle(TITULO)
         self.setWindowIcon(pai.windowIcon())
-        self.setWindowModality(Qt.WindowModality.WindowModal)
+        self.setWindowModality(Qt.WindowModality.NonModal)
         self.setMinimumWidth(440)
         self._ativo = True
+        self._texto_cancelamento = texto_cancelamento
         layout = QVBoxLayout(self)
-        self.etapa = QLabel(TEXTOS["progresso"])
+        self.etapa = QLabel(texto_inicial)
         self.barra = QProgressBar()
         self.barra.setRange(0, 0)
         self.detalhes = QLabel("")
@@ -41,7 +44,7 @@ class DialogoProgresso(QDialog):
     def definir_cancelando(self) -> None:
         """Impede solicitações repetidas durante o encerramento."""
         self.cancelar.setEnabled(False)
-        self.etapa.setText(TEXTOS["cancelando"])
+        self.etapa.setText(self._texto_cancelamento)
 
     def finalizar(self) -> None:
         """Fecha o popup somente após o encerramento do trabalho."""
