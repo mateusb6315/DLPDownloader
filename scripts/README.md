@@ -8,6 +8,8 @@ clone com o pacote instalado; cada script possui `--help`.
 | `preparar_ambiente.py` | Validar Python e executar `poetry install` |
 | `preparar_ferramentas.py` | Obter e verificar yt-dlp, FFmpeg/FFprobe e Deno do manifesto |
 | `verificar.py` | Executar lint, testes e verificações de arquitetura |
+| `nuitka.py` | Selecionar o canal de compilação da arquitetura raiz |
+| `beta.py` | Gerar a pasta portátil, o 7z e o instalador beta da arquitetura raiz |
 | `compilar.py` | Publicar distribuição Windows completa, sem `.spec` como entrada |
 | `compilar_beta.py` | Compilar pacote local de desenvolvimento sem relatório de produção |
 | `compilarfull.py` | Gerar pacote de produção, arquivo 7z e instalador |
@@ -48,7 +50,28 @@ locais também podem alterar os executáveis. Atualizações substituem arquivos
 mas não removem arquivos obsoletos de versões anteriores. Preferências permanecem em
 `%LOCALAPPDATA%` e não são removidas pelo desinstalador.
 
-## Beta completa com Nuitka
+## Beta da arquitetura raiz com Nuitka
+
+Com as ferramentas portáteis preparadas, execute `poetry run python scripts/nuitka.py`
+e escolha **1 — Beta**. A opção Release fica reservada durante a migração. Para chamar
+a beta diretamente, informe um nome válido para arquivo Windows:
+
+```powershell
+poetry run python scripts/beta.py --versao 1.3.2-beta3
+```
+
+Sem `--versao`, o script pede um nome. O aplicativo incorpora a versão base numérica do
+nome ou a versão de `pyproject.toml`, quando o nome não começa por uma base numérica.
+O Windows x64 precisa de MSVC e do SDK do Windows, UPX no PATH, 7-Zip e Inno Setup 7.
+`--baixar-compilador` permite que o Nuitka use e baixe Zig. `--destino` muda o diretório
+de saída, que por padrão é `releases/beta/`.
+
+A pasta standalone, o 7z e o instalador são promovidos depois da validação em staging.
+O build exige que a janela com o plugin Windows carregue o ícone e atinja PRONTO,
+que o executável processe os oito perfis com mídia sintética em localhost e que o
+reparador consiga ler seus recursos incorporados. Distribua a pasta portátil inteira.
+
+## Beta completa da arquitetura anterior
 
 No Windows x64, tenha UPX no PATH, 7-Zip, Inno Setup 7, as ferramentas de mídia
 preparadas e o grupo de desenvolvimento do Poetry instalado. Com MSVC x64 e o SDK

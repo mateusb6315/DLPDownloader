@@ -8,13 +8,14 @@ from functools import partial
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from PyQt6.QtCore import QStandardPaths, QTimer, QUrl
+from PyQt6.QtCore import QStandardPaths, QThread, QTimer, QUrl
 from PyQt6.QtGui import QDesktopServices, QIcon
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from config.controller import ControladorDownload
 from config.paths import caminho_icone, diretorio_dados, raiz_projeto
 from config.preferences import Preferencias
+from config.smoke import verificar_midia
 from config.version import ler_versao_atual
 from services._infra.arquivos import validar_destino
 from services._infra.bloqueios import bloquear_uso
@@ -57,15 +58,22 @@ def criar_aplicacao(
     )
     janela = JanelaPrincipal(icone, perfis)
     preferencias = Preferencias(dados / "config.json", destino_padrao)
+    smoke = bool(os.environ.get("DLP_SMOKE_TEST"))
+
+    def verificar_ferramentas(cancelamento):
+        if smoke and QThread.currentThread() == app.thread():
+            raise ErroAplicacao("Verificação executada na thread da interface.")
+        return verificar(raiz, cancelamento)
+
     controlador = ControladorDownload(
         janela,
         carregar_preferencias=preferencias.carregar,
         salvar_preferencias=preferencias.salvar,
         validar_destino=validar_destino,
-        verificar=partial(verificar, raiz),
+        verificar=verificar_ferramentas,
         criar_servico=ServicoDownload,
         reparo_disponivel=partial(reparo_disponivel, raiz),
-        consultar_atualizacao=None if os.environ.get("DLP_SMOKE_TEST") else _consultar_atualizacao,
+        consultar_atualizacao=None if smoke else _consultar_atualizacao,
         abrir_release=lambda url: QDesktopServices.openUrl(QUrl(url)),
     )
     return janela, controlador
@@ -85,6 +93,12 @@ def configurar_logs(dados: Path) -> None:
 
 def main() -> int:
     """Inicia o Qt e verifica as ferramentas depois de mostrar a janela."""
+    if sys.argv[1:2] == ["--verificar-midia"]:
+        if len(sys.argv) != 3:
+            print("Uso: --verificar-midia <dados>", file=sys.stderr)
+            return 2
+        return verificar_midia(raiz_projeto(), Path(sys.argv[2]))
+
     app = QApplication(sys.argv)
     raiz, dados = raiz_projeto(), diretorio_dados()
     with ExitStack() as recursos:
@@ -101,6 +115,9 @@ def main() -> int:
                 "Versão da distribuição indisponível; downloads permanecem disponíveis."
             )
         janela, controlador = criar_aplicacao(app, raiz=raiz, dados=dados)
+        if os.environ.get("DLP_SMOKE_TEST") and app.windowIcon().pixmap(16, 16).isNull():
+            logging.error("O ícone da aplicação não pôde ser carregado.")
+            return 1
         janela.show()
         QTimer.singleShot(0, controlador.inicializar)
         resultado = app.exec()

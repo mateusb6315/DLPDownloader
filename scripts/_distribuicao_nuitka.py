@@ -1,0 +1,70 @@
+"""Coordena o staging e a publicação dos artefatos dos canais Nuitka."""
+
+import os
+import tempfile
+from pathlib import Path
+
+from scripts._artefatos import comando_instalador, executar_etapa, localizar_ferramenta
+from scripts._nuitka_build import compilar_nuitka
+from scripts.comum import RAIZ, bloqueio, status, validar_nome
+from scripts.versao_build import versao_base
+
+
+def _localizar_compactador_e_instalador() -> tuple[Path, Path]:
+    programas = Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
+    programas_x86 = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"))
+    sete_zip = localizar_ferramenta("7z", [programas / "7-Zip/7z.exe"])
+    iscc = localizar_ferramenta(
+        "ISCC", [programas_x86 / "Inno Setup 7/ISCC.exe", programas / "Inno Setup 7/ISCC.exe"]
+    )
+    return sete_zip, iscc
+
+
+def _promover(artefatos: tuple[Path, ...], destino: Path) -> None:
+    publicados = []
+    try:
+        for artefato in artefatos:
+            publicados.append((artefato, artefato.rename(destino / artefato.name)))
+    except BaseException:
+        for origem, final in reversed(publicados):
+            final.rename(origem)
+        raise
+
+
+def gerar_distribuicao(
+    versao: str, destino: Path, *, beta: bool, baixar_compilador: bool = False
+) -> Path:
+    """Compila e valida os artefatos antes de promover o conjunto no destino."""
+    if os.name != "nt":
+        raise RuntimeError("A distribuição suportada deve ser compilada no Windows.")
+    if beta:
+        validar_nome(versao)
+    versao_base(RAIZ, versao, beta)
+    destino = destino.resolve()
+    base = f"DLPDownloader-{versao}"
+    nomes = (base, f"{base}.7z", f"{base}-setup.exe")
+    with bloqueio(destino / ".compilacao.lock"):
+        for nome in nomes:
+            if (destino / nome).exists():
+                raise FileExistsError(f"Já existe um artefato com esse nome: {destino / nome}")
+        sete_zip, iscc = _localizar_compactador_e_instalador()
+        with tempfile.TemporaryDirectory(prefix=".nuitka-", dir=destino) as pasta:
+            staging = Path(pasta)
+            pacote = compilar_nuitka(
+                staging, versao, beta=beta, baixar_compilador=baixar_compilador
+            )
+            arquivo, instalador = (staging / nome for nome in nomes[1:])
+            status("Compactando e verificando o pacote com 7-Zip…")
+            executar_etapa([str(sete_zip), "a", "-t7z", str(arquivo), pacote.name], cwd=staging)
+            executar_etapa([str(sete_zip), "t", str(arquivo)], cwd=staging)
+
+            status("Gerando o instalador com Inno Setup…")
+            comando, ambiente = comando_instalador(iscc, pacote, staging, versao, beta)
+            executar_etapa(comando, env=ambiente)
+            (staging / "instalador.exe").rename(instalador)
+            for caminho in (arquivo, instalador):
+                if not caminho.is_file() or caminho.stat().st_size == 0:
+                    raise RuntimeError(f"A ferramenta não gerou um arquivo válido: {caminho.name}")
+            _promover((pacote, arquivo, instalador), destino)
+    status(f"Pacote, 7z e instalador disponíveis em {destino}.")
+    return destino / base

@@ -13,9 +13,6 @@ def em_distribuicao() -> bool:
 def raiz_projeto() -> Path:
     """Retorna a raiz externa, independente do diretório de trabalho."""
     if em_distribuicao():
-        pasta_externa = getattr(globals().get("__compiled__"), "containing_dir", None)
-        if pasta_externa:
-            return Path(pasta_externa).resolve()
         return Path(sys.executable).resolve().parent
     return Path(__file__).resolve().parents[1]
 
