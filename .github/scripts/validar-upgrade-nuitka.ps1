@@ -41,21 +41,43 @@ function Invoke-Setup($setup, $label, $installationDirectory) {
 }
 
 function Assert-Installation($expectedVersion) {
-    $entry = Get-ItemProperty -LiteralPath $stableKey
-    $stableEntries = @(Get-ItemProperty -Path "$uninstall\*", "$uninstall32\*" -ErrorAction SilentlyContinue |
-        Where-Object DisplayName -match '^DLP Downloader(?: [0-9]+\.[0-9]+\.[0-9]+)?$')
-    if ($stableEntries.Count -ne 1 -or $entry.DisplayVersion -ne $expectedVersion -or
-        $entry.InstallLocation.TrimEnd('\') -ne $app -or $betaKeys.Where({ Test-Path -LiteralPath $_ })) {
-        throw "Identidade ou pasta inesperada para $expectedVersion."
+    $entry = Get-ItemProperty -LiteralPath $stableKey -ErrorAction SilentlyContinue
+    $stable32 = Test-Path -LiteralPath $stableKey32
+    $betaFound = @($betaKeys | Where-Object { Test-Path -LiteralPath $_ })
+    $location = ([string]$entry.InstallLocation).TrimEnd('\')
+    $uninstaller = ([string]$entry.UninstallString).Trim().Trim('"')
+    $record = [ordered]@{
+        StableAppId64 = $stableKey
+        StableAppId64Found = $null -ne $entry
+        StableAppId32 = $stableKey32
+        StableAppId32Found = $stable32
+        BetaKeysFound = $betaFound
+        DisplayName = $entry.DisplayName
+        DisplayVersion = $entry.DisplayVersion
+        ExpectedVersion = $expectedVersion
+        InstallLocation = $entry.InstallLocation
+        ExpectedLocation = $app
+        UninstallString = $entry.UninstallString
     }
+    $record | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $evidence "$expectedVersion-registro.json")
+    if (-not $entry) { throw "Chave estavel ausente no registro de 64 bits. Esperada: $stableKey" }
+    if ($stable32) { throw "Chave estavel duplicada no registro de 32 bits: $stableKey32" }
+    if ($betaFound.Count) { throw "Chave beta inesperada: $($betaFound -join ', ')" }
+    if ($entry.DisplayVersion -ne $expectedVersion) {
+        throw "DisplayVersion encontrada '$($entry.DisplayVersion)'. Esperada '$expectedVersion'."
+    }
+    if ($location -ne $app) { throw "InstallLocation encontrada '$location'. Esperada '$app'." }
+    if (-not $uninstaller -or -not (Test-Path -LiteralPath $uninstaller -PathType Leaf)) {
+        throw "Desinstalador registrado ausente: '$uninstaller'."
+    }
+
     if (-not (Test-Path -LiteralPath $link -PathType Leaf)) { throw 'Atalho ausente.' }
     $shell = New-Object -ComObject WScript.Shell
     $target = $shell.CreateShortcut($link).TargetPath
-    if ($target -ne (Join-Path $app 'DLPDownloader.exe')) { throw "Destino inesperado $target." }
-    $entry | Select-Object DisplayName, DisplayVersion, InstallLocation, UninstallString |
-        ConvertTo-Json | Set-Content -LiteralPath (Join-Path $evidence "$expectedVersion-registro.json")
     $target | Set-Content -LiteralPath (Join-Path $evidence "$expectedVersion-atalho.txt")
-    return $entry.UninstallString
+    $expectedTarget = Join-Path $app 'DLPDownloader.exe'
+    if ($target -ne $expectedTarget) { throw "Atalho aponta para '$target'. Esperado '$expectedTarget'." }
+    return $uninstaller
 }
 
 function Invoke-Smoke($label, $expectedVersion) {
@@ -130,11 +152,15 @@ function Assert-SavedDestination($label) {
 
 $uninstall = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall'
 $uninstall32 = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
-$stableKey = Join-Path $uninstall '{330DC7E6-C8B5-44AA-A38A-14D2DF57B4E1}_is1'
+$stableId = '{330DC7E6-C8B5-44AA-A38A-14D2DF57B4E1}_is1'
+$stableKey = Join-Path $uninstall $stableId
+$stableKey32 = Join-Path $uninstall32 $stableId
 $betaId = '{2AFCE230-A591-4A7F-9829-10D3CFE58D03}_is1'
 $betaKeys = @((Join-Path $uninstall $betaId), (Join-Path $uninstall32 $betaId))
 $link = Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'DLP Downloader\DLP Downloader.lnk'
-if (Test-Path -LiteralPath $stableKey) { throw 'A VM ja tem uma instalacao estavel.' }
+if ((Test-Path -LiteralPath $stableKey) -or (Test-Path -LiteralPath $stableKey32)) {
+    throw 'A VM ja tem uma instalacao estavel.'
+}
 
 $legacy = Join-Path $root 'DLPDownloader-1.3.1-setup.exe'
 $uri = 'https://github.com/mateusb6315/DLPDownloader/releases/download/1.3.1/DLPDownloader-1.3.1-setup.exe'
