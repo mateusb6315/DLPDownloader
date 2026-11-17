@@ -62,7 +62,8 @@ function Invoke-Smoke($label, $expectedVersion) {
     $record = Join-Path $evidence $label
     New-Item -ItemType Directory -Path $record | Out-Null
     $applicationLog = Join-Path $data 'DLPDownloader\aplicacao.log'
-    $result = Join-Path $data 'midia\resultado.json'
+    $media = Join-Path $data 'midia'
+    $result = Join-Path $media 'resultado.json'
     $stderr = Join-Path $data 'inicializacao.stderr'
     try {
         @'
@@ -80,7 +81,7 @@ validar_pacote(Path(pacote), Path(dados), plataforma="windows", versao=VersaoDis
             throw "Midia local falhou no smoke $label."
         }
     } finally {
-        foreach ($file in $applicationLog, $stderr, $result) {
+        foreach ($file in $applicationLog, $stderr, $media) {
             if (Test-Path -LiteralPath $file) { Move-Item -LiteralPath $file -Destination $record }
         }
     }
