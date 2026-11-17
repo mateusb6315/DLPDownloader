@@ -22,6 +22,7 @@ from scripts.comum import ambiente_compilacao as ambiente_compilacao
 from scripts.pacote import copiar_vendor, medir_pacote
 from scripts.validar_pacote import validar_pacote
 from scripts.versao_build import preparar_versao
+from scripts.versao_build import solicitar_versao as solicitar_versao
 
 
 def montar_comando(raiz: Path, temporario: Path) -> list[str]:
@@ -74,16 +75,6 @@ def executar_compilador(comando: list[str], executar=subprocess.run) -> None:
         status("Últimas linhas do PyInstaller:")
         print("\n".join(((erro.stdout or "") + (erro.stderr or "")).splitlines()[-30:]))
         raise
-
-
-def solicitar_versao() -> str:
-    """Solicita uma versão com três componentes numéricos."""
-    mensagem = "Digite a próxima versão: "
-    while True:
-        versao = input(mensagem).strip()
-        if re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", versao):
-            return versao
-        mensagem = "Formato inválido. Tente novamente: "
 
 
 def compilar(

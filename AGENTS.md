@@ -237,10 +237,10 @@ recursos temporários. Use `tests/test_repair.py`, `tests/test_controller.py` e
 ## Compilação Nuitka da arquitetura raiz
 
 Para compilar a arquitetura raiz, use `python scripts/nuitka.py` e escolha
-**1 — Beta**, ou execute `scripts/beta.py` diretamente. Consulte a seção
-“Beta da arquitetura raiz com Nuitka” em [scripts/README.md](scripts/README.md)
-para pré-requisitos, nomes e destinos. A opção **2 — Release** fica reservada
-durante a migração.
+**1 — Beta** ou **2 — Release**. As entradas diretas são `scripts/beta.py` e
+`scripts/release.py`. A release exige `X.Y.Z`, usa o canal estável e gera ZIP
+adicional quando recebe `--zip`. Consulte [scripts/README.md](scripts/README.md#compilação-nuitka-da-arquitetura-raiz)
+para pré-requisitos, nomes e destinos.
 
 `scripts/_nuitka_build.py` compila `config/bootstrap.py` em standalone e
 `services/repair_console.py` em onefile. O Nuitka é invocado a partir do
@@ -248,7 +248,7 @@ staging para evitar que `scripts/nuitka.py` seja encontrado como compilador.
 O standalone encontra `vendor` ao lado de `sys.executable`. Preserve
 `__compiled__.containing_dir` no reparador onefile para localizar a distribuição
 fora da pasta extraída. O UPX da beta atua nos executáveis gerados e nas extensões
-elegíveis do PyQt6.
+elegíveis do PyQt6. A release é compilada sem UPX.
 
 `scripts/_distribuicao_nuitka.py` valida o pacote e prepara a pasta portátil,
 o 7z e o instalador Inno em staging antes de publicá-los no destino. O smoke
@@ -257,3 +257,7 @@ de releases. Após verificar o ícone, o estado PRONTO e a versão, chama o mesm
 executável com `--verificar-midia <dados>` e exige os oito perfis no resultado
 JSON. A mídia sintética é servida em localhost. O reparador valida os recursos
 incorporados com `--verificar-empacotamento`.
+
+O instalador da release usa o AppId estável existente e reutiliza a pasta
+da versão instalada. Preserve as identidades distintas de beta e release.
+Preferências ficam em `%LOCALAPPDATA%` e devem ser restauradas no upgrade.

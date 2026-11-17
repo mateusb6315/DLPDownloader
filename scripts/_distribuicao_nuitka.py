@@ -32,19 +32,25 @@ def _promover(artefatos: tuple[Path, ...], destino: Path) -> None:
 
 
 def gerar_distribuicao(
-    versao: str, destino: Path, *, beta: bool, baixar_compilador: bool = False
+    versao: str,
+    destino: Path,
+    *,
+    beta: bool,
+    baixar_compilador: bool = False,
+    criar_zip: bool = False,
 ) -> Path:
     """Compila e valida os artefatos antes de promover o conjunto no destino."""
-    if os.name != "nt":
-        raise RuntimeError("A distribuição suportada deve ser compilada no Windows.")
     if beta:
         validar_nome(versao)
     versao_base(RAIZ, versao, beta)
+    if os.name != "nt":
+        raise RuntimeError("A distribuição suportada deve ser compilada no Windows.")
     destino = destino.resolve()
     base = f"DLPDownloader-{versao}"
-    nomes = (base, f"{base}.7z", f"{base}-setup.exe")
+    compactados = (f"{base}.7z", f"{base}.zip") if criar_zip else (f"{base}.7z",)
+    nome_instalador = f"{base}-setup.exe"
     with bloqueio(destino / ".compilacao.lock"):
-        for nome in nomes:
+        for nome in (base, *compactados, nome_instalador):
             if (destino / nome).exists():
                 raise FileExistsError(f"Já existe um artefato com esse nome: {destino / nome}")
         sete_zip, iscc = _localizar_compactador_e_instalador()
@@ -53,18 +59,20 @@ def gerar_distribuicao(
             pacote = compilar_nuitka(
                 staging, versao, beta=beta, baixar_compilador=baixar_compilador
             )
-            arquivo, instalador = (staging / nome for nome in nomes[1:])
+            arquivos = [staging / nome for nome in compactados]
+            instalador = staging / nome_instalador
             status("Compactando e verificando o pacote com 7-Zip…")
-            executar_etapa([str(sete_zip), "a", "-t7z", str(arquivo), pacote.name], cwd=staging)
-            executar_etapa([str(sete_zip), "t", str(arquivo)], cwd=staging)
+            for arquivo in arquivos:
+                executar_etapa([str(sete_zip), "a", str(arquivo), pacote.name], cwd=staging)
+                executar_etapa([str(sete_zip), "t", str(arquivo)], cwd=staging)
 
             status("Gerando o instalador com Inno Setup…")
             comando, ambiente = comando_instalador(iscc, pacote, staging, versao, beta)
             executar_etapa(comando, env=ambiente)
             (staging / "instalador.exe").rename(instalador)
-            for caminho in (arquivo, instalador):
+            for caminho in (*arquivos, instalador):
                 if not caminho.is_file() or caminho.stat().st_size == 0:
                     raise RuntimeError(f"A ferramenta não gerou um arquivo válido: {caminho.name}")
-            _promover((pacote, arquivo, instalador), destino)
-    status(f"Pacote, 7z e instalador disponíveis em {destino}.")
+            _promover((pacote, *arquivos, instalador), destino)
+    status(f"Pacote, {'7z, ZIP' if criar_zip else '7z'} e instalador disponíveis em {destino}.")
     return destino / base
