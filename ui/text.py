@@ -60,10 +60,12 @@ ATUALIZACOES = {
     "menu": "Opções",
     "procurar": "Procurar atualizações",
     "verificando": "Verificando se há atualizações...",
+    "cancelando": "Cancelando consulta…",
     "disponivel": "Há uma atualização disponível",
     "atualizado": "Você já está usando a versão mais recente disponível.",
     "baixar": "Baixar agora",
     "depois": "Deixar para depois",
+    "erro_navegador": "Não foi possível abrir o navegador. Copie este link: {url}",
 }
 ESTILO = """
 QWidget { font-size: 14px; }
