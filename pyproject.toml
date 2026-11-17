@@ -28,7 +28,10 @@ pefile = {version = ">=2024.8.26,<2027", markers = "sys_platform == 'win32'"}
 pythonpath = ["src", "."]
 testpaths = ["tests"]
 qt_api = "pyqt6"
-markers = ["externo: exige ferramentas portateis ou Windows real"]
+markers = [
+    "externo: exige ferramentas portateis ou Windows real",
+    "interface_windows: exige uma sessão interativa do Windows com o plugin Qt windows",
+]
 
 [tool.ruff]
 line-length = 100

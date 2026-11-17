@@ -281,7 +281,16 @@ O ciclo padrão não baixa mídia nem depende dos executáveis portáteis:
 .\.venv\Scripts\python.exe -m pytest tests\test_interface_controlador.py -v
 ```
 
-`verificar.py` executa Ruff, conferência de formatação e `pytest -m "not externo"`.
+`verificar.py` executa Ruff, conferência de formatação e
+`pytest -m "not externo and not interface_windows"`.
+
+Os testes da janela em primeiro plano exigem uma sessão interativa do Windows
+e as ferramentas portáteis instaladas em `vendor`. Execute em um PowerShell separado:
+
+```powershell
+$env:QT_QPA_PLATFORM = "windows"
+.\.venv\Scripts\python.exe -m pytest -q -m interface_windows
+```
 Os testes de GUI usam Qt offscreen; os testes de build usam um compilador falso.
 
 Depois de preparar `vendor/`, execute a integração real:

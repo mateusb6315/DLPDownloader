@@ -1,0 +1,83 @@
+"""Compõe e inicia a aplicação desktop na arquitetura da raiz."""
+
+import logging
+import sys
+from functools import partial
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
+
+from PyQt6.QtCore import QStandardPaths, QTimer
+from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import QApplication
+
+from config.controller import ControladorDownload
+from config.paths import caminho_icone, diretorio_dados, raiz_projeto
+from config.preferences import Preferencias
+from services._infra.arquivos import validar_destino
+from services._infra.dependencias import verificar
+from services._models.perfis import PERFIS
+from services.downloader import ServicoDownload
+from ui.tema import aplicar_tema
+from ui.window import JanelaPrincipal
+
+
+def criar_aplicacao(
+    app: QApplication,
+    *,
+    raiz: Path | None = None,
+    dados: Path | None = None,
+    destino_padrao: Path | None = None,
+) -> tuple[JanelaPrincipal, ControladorDownload]:
+    """Monta a janela e o controlador antes de iniciar as tarefas e o loop."""
+    raiz = raiz_projeto() if raiz is None else raiz.resolve()
+    dados = diretorio_dados() if dados is None else dados
+    if destino_padrao is None:
+        destino_padrao = Path(
+            QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DownloadLocation)
+        )
+    icone = caminho_icone()
+    app.setApplicationName("DLPDownloader")
+    app.setWindowIcon(QIcon(str(icone)))
+    aplicar_tema(app)
+    perfis = tuple(
+        (identificador, rotulo, bitrates, ajuda)
+        for identificador, rotulo, _, bitrates, ajuda in PERFIS
+    )
+    janela = JanelaPrincipal(icone, perfis)
+    preferencias = Preferencias(dados / "config.json", destino_padrao)
+    controlador = ControladorDownload(
+        janela,
+        carregar_preferencias=preferencias.carregar,
+        salvar_preferencias=preferencias.salvar,
+        validar_destino=validar_destino,
+        verificar=partial(verificar, raiz),
+        criar_servico=ServicoDownload,
+    )
+    return janela, controlador
+
+
+def configurar_logs(dados: Path) -> None:
+    """Grava registros com rotação e recorre ao console se a pasta falhar."""
+    try:
+        dados.mkdir(parents=True, exist_ok=True)
+        handler = RotatingFileHandler(
+            dados / "aplicacao.log", maxBytes=1_000_000, backupCount=3, encoding="utf-8"
+        )
+        logging.basicConfig(level=logging.INFO, handlers=[handler])
+    except OSError:
+        logging.basicConfig(level=logging.INFO)
+
+
+def main() -> int:
+    """Inicia o Qt e verifica as ferramentas depois de mostrar a janela."""
+    app = QApplication(sys.argv)
+    dados = diretorio_dados()
+    configurar_logs(dados)
+    janela, controlador = criar_aplicacao(app, dados=dados)
+    janela.show()
+    QTimer.singleShot(0, controlador.inicializar)
+    return app.exec()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

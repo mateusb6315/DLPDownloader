@@ -1,11 +1,34 @@
 """Fixtures isoladas: nenhuma preferência ou download usa pastas pessoais."""
 
 import os
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+
+@pytest.fixture
+def janela_windows(qapp, qtbot):
+    """Exige uma janela ativa no desktop, com eventos reais do Qt."""
+    from PyQt6.QtTest import QTest
+
+    assert qapp.platformName() == "windows", "Execute com QT_QPA_PLATFORM=windows."
+
+    @contextmanager
+    def mostrar(janela):
+        janela.show()
+        janela.raise_()
+        janela.activateWindow()
+        try:
+            assert QTest.qWaitForWindowActive(janela, 5000), "Desktop Windows indisponível."
+            yield janela
+        finally:
+            janela.close()
+            qtbot.waitUntil(lambda: not janela.isVisible(), timeout=10000)
+
+    return mostrar
 
 
 @pytest.fixture
