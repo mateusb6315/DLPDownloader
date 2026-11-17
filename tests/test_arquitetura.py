@@ -47,9 +47,14 @@ def test_arquitetura_raiz_independe_do_legado_e_respeita_mvc():
         for pasta in ("ui", "config", "services")
         for arquivo in (raiz / pasta).rglob("*.py")
     }
-    assert {"ui.window", "config.bootstrap", "config.controller", "services.downloader"} <= (
-        arquivos.keys()
-    )
+    assert {
+        "ui.window",
+        "config.bootstrap",
+        "config.controller",
+        "services.downloader",
+        "services.repair",
+        "services.repair_console",
+    } <= arquivos.keys()
     grafo = {}
     for modulo, arquivo in arquivos.items():
         imports = set()

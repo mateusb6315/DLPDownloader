@@ -44,6 +44,11 @@ TEXTOS = {
         "Para realizar o reparo das ferramentas, feche o DLP Downloader e "
         "execute repair.exe na pasta vendor."
     ),
+    "reparo_ausente": (
+        "Não foi possível encontrar vendor/repair.exe. Extraia novamente o pacote completo."
+    ),
+    "erro_iniciar_reparo": "Não foi possível iniciar vendor/repair.exe.",
+    "aguardar_reparo": "Aguarde o reparo terminar antes de abrir o aplicativo.",
 }
 ETAPAS = {
     "preparando": "Preparando download…",

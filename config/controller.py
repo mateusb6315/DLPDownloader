@@ -27,7 +27,7 @@ class ControladorDownload(QObject):
         validar_destino,
         verificar,
         criar_servico,
-        solicitar_reparo=None,
+        reparo_disponivel=None,
         encerrar_tarefas=lambda: True,
     ):
         super().__init__(janela)
@@ -37,7 +37,8 @@ class ControladorDownload(QObject):
         self.validar_destino = validar_destino
         self.verificar = verificar
         self.criar_servico = criar_servico
-        self.solicitar_reparo = solicitar_reparo
+        self.reparo_disponivel = reparo_disponivel
+        self.reparo_solicitado = False
         self.encerrar_tarefas = encerrar_tarefas
         self.estado = Estado.VERIFICANDO
         self.servico = None
@@ -211,19 +212,23 @@ class ControladorDownload(QObject):
             else:
                 self._transicionar(Estado.INDISPONIVEL)
                 self.janela.atualizar_status(erro or TEXTOS["indisponivel"])
-                if self.solicitar_reparo and self.janela.perguntar_reparo():
-                    if self.solicitar_reparo():
-                        self._concluir_fechamento()
-                    else:
-                        self.janela.exibir_erro(
-                            "Não foi possível encontrar vendor/repair.exe. "
-                            "Extraia novamente o pacote completo."
-                        )
-                elif self.solicitar_reparo:
-                    self.janela.avisar_reparo_manual()
+                if self.reparo_disponivel is not None:
+                    self._oferecer_reparo()
         else:
             self._transicionar(Estado.INDISPONIVEL)
             self.janela.atualizar_status(TEXTOS["indisponivel"])
+
+    def _oferecer_reparo(self) -> None:
+        aceito = self.janela.perguntar_reparo()
+        if self._fechar:
+            return
+        if not aceito:
+            self.janela.avisar_reparo_manual()
+        elif self.reparo_disponivel():
+            self.reparo_solicitado = True
+            self._concluir_fechamento()
+        else:
+            self.janela.exibir_erro(TEXTOS["reparo_ausente"])
 
     def _transicionar(self, estado: Estado) -> None:
         validar_transicao(self.estado, estado)
@@ -266,5 +271,6 @@ class ControladorDownload(QObject):
             self._apresentar_resultado()
 
     def _concluir_fechamento(self) -> None:
+        self._fechar = True
         if self.encerrar_tarefas():
             self.janela.permitir_fechamento()

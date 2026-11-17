@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 from PyQt6.QtCore import Qt
 
+from config.bootstrap import criar_aplicacao
 from config.controller import ControladorDownload
 from config.paths import caminho_icone
 from config.preferences import Preferencias
@@ -14,7 +15,46 @@ from services._infra.arquivos import validar_destino
 from services._models.download import Estado
 from services._models.erros import Cancelado, ErroDownload
 from services._models.progresso import EventoProgresso
+from tests.apoio_vendor import criar_vendor
 from ui.window import JanelaPrincipal
+
+
+@pytest.mark.parametrize(
+    "aceita,disponivel,fechou,avisou",
+    [(True, True, True, False), (True, False, False, False), (False, True, False, True)],
+)
+def test_falha_de_integridade_oferece_reparo(
+    qapp, qtbot, tmp_path, aceita, disponivel, fechou, avisou
+):
+    raiz = tmp_path / "app"
+    vendor = criar_vendor(raiz)
+    (vendor / "ffmpeg/avcodec.dll").write_bytes(b"adulterado")
+    if disponivel:
+        (vendor / "repair.exe").touch()
+    janela, controlador = criar_aplicacao(
+        qapp, raiz=raiz, dados=tmp_path / "dados", destino_padrao=tmp_path
+    )
+    qtbot.addWidget(janela)
+    perguntas, avisos, erros = [], [], []
+
+    def perguntar():
+        perguntas.append(True)
+        return aceita
+
+    janela.perguntar_reparo = perguntar
+    janela.avisar_reparo_manual = lambda: avisos.append(True)
+    janela.exibir_erro = erros.append
+    janela.show()
+    controlador.inicializar()
+    qtbot.waitUntil(lambda: bool(perguntas))
+    if fechou:
+        qtbot.waitUntil(lambda: not janela.isVisible())
+    assert controlador.reparo_solicitado == fechou
+    assert janela.isVisible() != fechou
+    assert not janela.baixar.isEnabled()
+    assert "Integridade inválida" in janela.status.text()
+    assert bool(avisos) == avisou
+    assert bool(erros) == (aceita and not disponivel)
 
 
 @pytest.fixture

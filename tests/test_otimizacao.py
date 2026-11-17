@@ -59,26 +59,35 @@ def test_pacote_exclui_residuos(tmp_path):
     assert not (destino / "ffmpeg/antiga.dll").exists()
 
 
-def test_troca_falha_restaura_conjunto_e_metadados(tmp_path, monkeypatch):
+@pytest.mark.parametrize("falha_na_restauracao", [False, True])
+def test_troca_falha_preserva_conjunto_e_metadados(tmp_path, monkeypatch, falha_na_restauracao):
     vendor = criar_vendor(tmp_path / "projeto")
     staging = tmp_path / "staging"
+    backup = tmp_path / "backup"
     shutil.copytree(vendor, staging)
     (staging / "ffmpeg/avcodec.dll").write_bytes(b"novo")
     antigo = (vendor / "installed.json").read_bytes()
-    from scripts import instalar_ferramentas
+    from services._infra import instalacao
 
-    substituir = instalar_ferramentas.os.replace
+    substituir = instalacao.os.replace
 
     def falhar(origem, destino):
-        if origem == staging / "ffmpeg":
+        if origem == staging / "ffmpeg" or (falha_na_restauracao and origem == backup / "ffmpeg"):
             raise PermissionError("Arquivo em uso")
         substituir(origem, destino)
 
-    monkeypatch.setattr(instalar_ferramentas.os, "replace", falhar)
-    with pytest.raises(PermissionError):
-        instalar_conjunto(vendor, staging, tmp_path / "backup", ler_manifesto(vendor))
-    assert (vendor / "installed.json").read_bytes() == antigo
-    assert (vendor / "ffmpeg/avcodec.dll").read_bytes() == b"executavel"
+    monkeypatch.setattr(instalacao.os, "replace", falhar)
+    if falha_na_restauracao:
+        with pytest.raises(RuntimeError, match="Recuperação manual necessária"):
+            instalar_conjunto(vendor, staging, backup, ler_manifesto(vendor))
+        (preservado,) = vendor.parent.glob(".recuperacao-*")
+        assert not (vendor / "installed.json").exists()
+    else:
+        with pytest.raises(PermissionError):
+            instalar_conjunto(vendor, staging, backup, ler_manifesto(vendor))
+        preservado = vendor
+    assert (preservado / "installed.json").read_bytes() == antigo
+    assert (preservado / "ffmpeg/avcodec.dll").read_bytes() == b"executavel"
 
 
 def test_troca_remove_dll_antiga_preserva_aviso_particular(tmp_path):
