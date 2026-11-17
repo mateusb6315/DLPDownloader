@@ -242,3 +242,33 @@ def test_fechar_aguarda_download_e_consulta_cancelados(montar, qtbot):
         liberar_download.set()
         liberar_consulta.set()
         qtbot.waitUntil(lambda: not janela.isVisible())
+
+
+@pytest.mark.parametrize(
+    "conteudo",
+    [None, "{", "[]", "{}", '{"version":3}', '{"version":"beta"}', "x" * 5000, '{"version":"1.2"}'],
+)
+def test_distribuicao_sem_versao_incorporada_rejeita_metadados_invalidos(
+    tmp_path, monkeypatch, conteudo
+):
+    from config import version
+
+    if conteudo is not None:
+        (tmp_path / "version.json").write_text(conteudo, encoding="utf-8")
+    monkeypatch.setattr(version, "em_distribuicao", lambda: True)
+    monkeypatch.setattr(version, "raiz_projeto", lambda: tmp_path)
+    monkeypatch.delitem(sys.modules, "versao_build", raising=False)
+
+    with pytest.raises(ErroAplicacao, match="Não foi possível verificar a versão atual"):
+        version.ler_versao_atual()
+
+
+def test_distribuicao_sem_versao_incorporada_reconhece_metadados_anteriores(tmp_path, monkeypatch):
+    from config import version
+
+    (tmp_path / "version.json").write_text('{"version":"1.2.1"}', encoding="utf-8")
+    monkeypatch.setattr(version, "em_distribuicao", lambda: True)
+    monkeypatch.setattr(version, "raiz_projeto", lambda: tmp_path)
+    monkeypatch.delitem(sys.modules, "versao_build", raising=False)
+
+    assert version.ler_versao_atual() == VersaoDistribuicao("1.2.1")

@@ -4,9 +4,9 @@ import json
 
 import pytest
 
-from dlpdownloader.modelos.erros import ErroDestino
-from dlpdownloader.servicos.arquivos import gravar_json, validar_destino
-from dlpdownloader.servicos.preferencias import Preferencias
+from config.preferences import Preferencias
+from services._infra.arquivos import gravar_json, validar_destino
+from services._models.erros import ErroDestino
 
 
 def test_pasta_e_restaurada_apos_reabrir(tmp_path):
@@ -44,7 +44,7 @@ def test_gravacao_atomica_preserva_original_em_falha(tmp_path, monkeypatch):
     def falhar(*args):
         raise PermissionError("sem permissão")
 
-    monkeypatch.setattr("dlpdownloader.servicos.arquivos.os.replace", falhar)
+    monkeypatch.setattr("services._infra.arquivos.os.replace", falhar)
     with pytest.raises(PermissionError):
         gravar_json(arquivo, {"valor": 2})
     assert json.loads(arquivo.read_text()) == {"valor": 1}

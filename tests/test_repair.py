@@ -9,7 +9,6 @@ import zipfile
 
 import pytest
 
-from dlpdownloader.servicos.uso import bloquear_uso as bloquear_uso_legado
 from services import repair, repair_console
 from services._infra.bloqueios import bloquear_uso
 from tests.apoio_vendor import criar_vendor
@@ -110,15 +109,14 @@ def test_falha_ao_consultar_processos_interrompe_com_mensagem_clara(monkeypatch)
 
 
 def test_bloqueio_compartilhado_impede_reparo_e_vice_versa(tmp_path):
-    with bloquear_uso(tmp_path, exclusivo=False), bloquear_uso_legado(tmp_path, exclusivo=False):
+    with bloquear_uso(tmp_path, exclusivo=False), bloquear_uso(tmp_path, exclusivo=False):
         with pytest.raises(RuntimeError, match="Feche"):
             with bloquear_uso(tmp_path, exclusivo=True):
                 pass
     with bloquear_uso(tmp_path, exclusivo=True):
-        for bloquear in (bloquear_uso, bloquear_uso_legado):
-            with pytest.raises(RuntimeError, match="Feche"):
-                with bloquear(tmp_path, exclusivo=False):
-                    pass
+        with pytest.raises(RuntimeError, match="Feche"):
+            with bloquear_uso(tmp_path, exclusivo=False):
+                pass
 
 
 def test_reparo_restaura_manifesto_dll_e_metadados(tmp_path, monkeypatch):

@@ -12,20 +12,19 @@ dependencies = [
 ]
 
 [project.gui-scripts]
-dlpdownloader = "dlpdownloader.aplicacao:main"
+dlpdownloader = "config.bootstrap:main"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=9,<10"
 pytest-qt = ">=4.5,<5"
 ruff = ">=0.17,<0.18"
-pyinstaller = ">=6.18,<7"
 pillow = ">=12.1,<13"
 build = ">=1.4,<2"
 nuitka = {version = ">=4.3,<4.4", extras = ["onefile"]}
 pefile = {version = ">=2024.8.26,<2027", markers = "sys_platform == 'win32'"}
 
 [tool.pytest.ini_options]
-pythonpath = ["src", "."]
+pythonpath = ["."]
 testpaths = ["tests"]
 qt_api = "pyqt6"
 markers = [
@@ -41,7 +40,13 @@ target-version = "py313"
 select = ["E", "F", "I"]
 
 [tool.poetry]
-packages = [{include = "dlpdownloader", from = "src"}]
+packages = [
+    {include = "dlpdownloader.py"},
+    {include = "config"},
+    {include = "services"},
+    {include = "ui"},
+]
+include = [{path = "ui/resources/flet.png", format = ["sdist", "wheel"]}]
 
 
 [build-system]

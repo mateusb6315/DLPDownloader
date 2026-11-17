@@ -9,11 +9,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from dlpdownloader.modelos.erros import Cancelado, ErroDependencia
-from dlpdownloader.servicos.dependencias import verificar
-from dlpdownloader.servicos.manifesto import ler_manifesto, relativo_seguro, sha256
-from scripts.instalar_ferramentas import instalar_conjunto
 from scripts.pacote import copiar_vendor
+from services._infra.dependencias import verificar
+from services._infra.instalacao import instalar_conjunto
+from services._infra.manifesto import ler_manifesto, relativo_seguro, sha256
+from services._models.erros import Cancelado, ErroDependencia
 from tests.apoio_vendor import criar_vendor
 
 
@@ -36,7 +36,7 @@ def test_dll_exigida_pelo_manifesto(tmp_path, monkeypatch, mudanca):
         dados = json.loads(meta.read_text())
         del dados["arquivos"]["ffmpeg/avcodec.dll"]
         meta.write_text(json.dumps(dados))
-    monkeypatch.setattr("dlpdownloader.servicos.dependencias.executar", lambda *a, **k: None)
+    monkeypatch.setattr("services._infra.dependencias.executar", lambda *a, **k: None)
     with pytest.raises(ErroDependencia):
         verificar(tmp_path, threading.Event())
 
@@ -102,13 +102,13 @@ def test_troca_remove_dll_antiga_preserva_aviso_particular(tmp_path):
 
 
 def test_falha_diagnostico_retorna_erro_sem_dialogo(tmp_path, monkeypatch):
-    from dlpdownloader.aplicacao import main
+    from config.bootstrap import main
 
     def falhar(*args):
         raise RuntimeError("conteúdo que não deve ser registrado")
 
     monkeypatch.setattr("sys.argv", ["App.exe", "--verificar-midia", str(tmp_path)])
-    monkeypatch.setattr("dlpdownloader.servicos.autoteste.testar_midia", falhar)
+    monkeypatch.setattr("config.smoke.testar_midia", falhar)
     assert main() == 1
     assert json.loads((tmp_path / "resultado.json").read_text()) == {
         "sucesso": False,
@@ -123,7 +123,7 @@ def test_upx_preserva_extensao_assinada_ou_incompativel(
     tmp_path, monkeypatch, assinado, falha, comprimido
 ):
     pefile = pytest.importorskip("pefile")
-    from scripts import nuitka_beta
+    from scripts._nuitka_tools import comprimir_extensoes_qt
 
     pasta = tmp_path / "pacote/PyQt6"
     pasta.mkdir(parents=True)
@@ -141,7 +141,6 @@ def test_upx_preserva_extensao_assinada_ou_incompativel(
         elif falha:
             raise RuntimeError("Compressão incompatível")
 
-    monkeypatch.setattr(nuitka_beta, "executar_build", executar)
-    nuitka_beta.comprimir_extensoes_qt("upx", pasta.parent)
+    comprimir_extensoes_qt("upx", pasta.parent, executar=executar)
     assert len(chamadas) == (0 if assinado else 2)
     assert extensao.read_bytes() == (b"menor" if comprimido else b"original")

@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from dlpdownloader.servicos.manifesto import sha256
+from services._infra.manifesto import sha256
 
 
 def criar_vendor(raiz: Path) -> Path:

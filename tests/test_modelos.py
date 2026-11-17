@@ -4,8 +4,8 @@ from dataclasses import replace
 
 import pytest
 
-from dlpdownloader.modelos.erros import ErroAplicacao
-from dlpdownloader.modelos.formatos import argumentos_formato
+from services._models.erros import ErroAplicacao
+from services._models.formatos import argumentos_formato
 
 
 @pytest.mark.parametrize(
@@ -62,7 +62,7 @@ def test_bitrate_nao_e_permitido_para_lossless(pedido):
 
 
 def test_estado_nao_permite_download_antes_de_pronto():
-    from dlpdownloader.modelos.download import Estado, validar_transicao
+    from services._models.download import Estado, validar_transicao
 
     with pytest.raises(ValueError, match="Transição inválida"):
         validar_transicao(Estado.VERIFICANDO, Estado.BAIXANDO)

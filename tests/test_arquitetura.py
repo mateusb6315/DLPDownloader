@@ -1,83 +1,92 @@
-"""Restrições de dependência e ciclos entre módulos internos."""
+"""Limites do MVC e dependências entre módulos da aplicação."""
 
 import ast
 from importlib.util import resolve_name
 from pathlib import Path
 
+RAIZ = Path(__file__).resolve().parents[1]
+CAMADAS = {"config", "ui", "services"}
 
-def test_imports_respeitam_mvc_e_nao_possuem_ciclos():
-    raiz = Path(__file__).resolve().parents[1] / "src/dlpdownloader"
-    grafo = {}
-    for arquivo in raiz.rglob("*.py"):
-        modulo = "dlpdownloader." + ".".join(arquivo.relative_to(raiz).with_suffix("").parts)
-        imports = []
-        for no in ast.walk(ast.parse(arquivo.read_text(encoding="utf-8"))):
-            if isinstance(no, ast.ImportFrom) and no.module:
-                imports.append(no.module)
-            elif isinstance(no, ast.Import):
-                imports.extend(alias.name for alias in no.names)
-        camada = arquivo.relative_to(raiz).parts[0]
-        if camada in {"modelos", "servicos", "config"}:
-            assert not any(i.startswith("PyQt6") for i in imports), arquivo
-        if camada == "visoes":
-            assert not any(
-                i.startswith(f"dlpdownloader.{c}")
-                for i in imports
-                for c in ("modelos", "servicos", "controladores")
-            ), arquivo
-        grafo[modulo] = [i for i in imports if i.startswith("dlpdownloader.")]
 
-    _verificar_ciclos(grafo)
+def _imports(arquivo, modulo, conhecidos):
+    imports = set()
+    for no in ast.walk(ast.parse(arquivo.read_text(encoding="utf-8"))):
+        if isinstance(no, ast.Import):
+            imports.update(alias.name for alias in no.names)
+        elif isinstance(no, ast.ImportFrom):
+            origem = no.module or ""
+            if no.level:
+                pacote = modulo if arquivo.stem == "__init__" else modulo.rpartition(".")[0]
+                origem = resolve_name("." * no.level + origem, pacote)
+            imports.add(origem)
+            imports.update(alvo for a in no.names if (alvo := f"{origem}.{a.name}") in conhecidos)
+    return imports
 
 
 def _verificar_ciclos(grafo):
+    visitados = set()
+
     def visitar(modulo, caminho):
-        assert modulo not in caminho, f"Ciclo: {caminho} -> {modulo}"
-        for dependencia in grafo.get(modulo, []):
-            visitar(dependencia, caminho | {modulo})
+        assert modulo not in caminho, f"Ciclo: {' -> '.join((*caminho, modulo))}"
+        if modulo in visitados:
+            return
+        for dependencia in grafo[modulo]:
+            visitar(dependencia, (*caminho, modulo))
+        visitados.add(modulo)
 
     for modulo in grafo:
-        visitar(modulo, set())
+        visitar(modulo, ())
 
 
-def test_arquitetura_raiz_independe_do_legado_e_respeita_mvc():
-    raiz = Path(__file__).resolve().parents[1]
+def test_imports_respeitam_mvc_e_nao_possuem_ciclos():
     arquivos = {
-        ".".join(arquivo.relative_to(raiz).with_suffix("").parts).removesuffix(".__init__"): arquivo
-        for pasta in ("ui", "config", "services")
-        for arquivo in (raiz / pasta).rglob("*.py")
+        ".".join(arquivo.relative_to(RAIZ).with_suffix("").parts).removesuffix(".__init__"): arquivo
+        for pasta in CAMADAS
+        for arquivo in (RAIZ / pasta).rglob("*.py")
     }
+    entradas = {"main", "dlpdownloader"}
+    arquivos.update({nome: RAIZ / f"{nome}.py" for nome in entradas})
     assert {
         "ui.window",
         "config.bootstrap",
         "config.controller",
         "services.downloader",
+        "services.yt_dlp",
+        "services.ffmpeg",
         "services.repair",
         "services.repair_console",
     } <= arquivos.keys()
+
     grafo = {}
     for modulo, arquivo in arquivos.items():
-        imports = set()
-        for no in ast.walk(ast.parse(arquivo.read_text(encoding="utf-8"))):
-            if isinstance(no, ast.Import):
-                imports.update(alias.name for alias in no.names)
-            elif isinstance(no, ast.ImportFrom):
-                origem = no.module or ""
-                if no.level:
-                    pacote = modulo if arquivo.stem == "__init__" else modulo.rpartition(".")[0]
-                    origem = resolve_name("." * no.level + origem, pacote)
-                imports.add(origem)
-                imports.update(alvo for a in no.names if (alvo := f"{origem}.{a.name}") in arquivos)
+        imports = _imports(arquivo, modulo, arquivos.keys())
+        camada = modulo.split(".")[0]
         grupos = {i.split(".")[0] for i in imports}
-        assert "dlpdownloader" not in grupos, arquivo
-        if modulo.startswith("ui."):
+        assert not grupos & entradas, arquivo
+        if camada == "ui":
             assert not grupos & {"config", "services"}, arquivo
-        if modulo.startswith("services.") or modulo in {"config.paths", "config.preferences"}:
+        if camada == "services":
             assert not grupos & {"PyQt6", "ui"}, arquivo
-        if modulo == "config.controller":
-            assert not any(
-                i.startswith(("services._infra", "services.downloader")) for i in imports
-            )
+            configuracao = {i for i in imports if i.partition(".")[0] == "config"}
+            permitidos = {"config.paths"} if modulo == "services.repair_console" else set()
+            assert configuracao <= permitidos, arquivo
+        if modulo in {"config", "config.paths"}:
+            assert not grupos & (CAMADAS | {"PyQt6"}), arquivo
+        if modulo.startswith("services._models"):
+            assert all(i.startswith("services._models") for i in imports & arquivos.keys()), arquivo
+        if modulo in {"config.paths", "config.preferences"}:
+            assert not grupos & {"PyQt6", "ui"}, arquivo
+        if modulo in {"config.controller", "config.update_tasks", "config.worker"}:
+            assert all(
+                i.startswith("services._models") for i in imports if i.startswith("services")
+            ), arquivo
+        if modulo == "services.yt_dlp":
+            assert not imports & {"services.ffmpeg", "services.downloader"}, arquivo
+        if modulo == "services.ffmpeg":
+            assert not imports & {"services.yt_dlp", "services.downloader"}, arquivo
         grafo[modulo] = imports & arquivos.keys()
 
+    for entrada in entradas:
+        assert grafo[entrada] == {"config.bootstrap"}
+    assert {"services.ffmpeg", "services.yt_dlp"} <= grafo["services.downloader"]
     _verificar_ciclos(grafo)

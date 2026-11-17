@@ -1,4 +1,4 @@
-"""Contrato público da nova fachada, com processos e mídia reais."""
+"""Contrato público da fachada de download, com processos e mídia reais."""
 
 import functools
 import http.server
@@ -310,3 +310,24 @@ def test_cancelamento_finalizando_audio_preserva_anterior(midia, tmp_path):
     assert eventos[-1].etapa == "finalizando"
     assert anterior.read_bytes() == b"arquivo anterior"
     assert list(tmp_path.iterdir()) == [anterior]
+
+
+@pytest.mark.parametrize(
+    "entrada,perfil,bitrate",
+    [
+        ("fonte.webm", "mkv", None),
+        ("h264.mp4", "mp4", None),
+        ("hevc.mp4", "mkv", None),
+        ("av1.webm", "mkv", None),
+        ("fonte.webm", "mp3", 192),
+        ("fonte.webm", "flac", None),
+        ("fonte.ogg", "opus", 128),
+        ("fonte.m3u8", "m4a", 192),
+    ],
+)
+def test_entradas_codecs_e_hls(midia, tmp_path, entrada, perfil, bitrate):
+    ferramentas, url = midia
+    pedido = SolicitacaoDownload(url.replace("fonte.mp4", entrada), perfil, bitrate, tmp_path)
+    resultado = ServicoDownload(ferramentas).baixar(pedido, threading.Event(), lambda e: None)
+    assert resultado.stat().st_size > 0
+    assert list(tmp_path.iterdir()) == [resultado]

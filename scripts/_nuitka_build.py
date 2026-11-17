@@ -1,4 +1,4 @@
-"""Compila a aplicação standalone e o reparador onefile na arquitetura raiz."""
+"""Compila a aplicação em standalone e o reparador em onefile."""
 
 import importlib.metadata
 import os
@@ -69,7 +69,7 @@ def _compilar_aplicativo(staging, ambiente, baixar_compilador) -> Path:
         "--python-flag=no_docstrings",
         f"--windows-icon-from-ico={ico}",
         f"--include-data-files={icone.name}=ui/resources/flet.png",
-        str(RAIZ / "config/bootstrap.py"),
+        str(RAIZ / "main.py"),
     ]
     executar_build(comando, staging, ambiente=ambiente)
     return saida / "dlp.dist"
