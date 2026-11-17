@@ -42,10 +42,10 @@ function Invoke-Setup($setup, $label, $installationDirectory) {
 
 function Assert-Installation($expectedVersion) {
     $entry = Get-ItemProperty -LiteralPath $stableKey
-    $stableEntries = @(Get-ItemProperty -Path "$uninstall\*" |
-        Where-Object DisplayName -eq 'DLP Downloader')
+    $stableEntries = @(Get-ItemProperty -Path "$uninstall\*", "$uninstall32\*" -ErrorAction SilentlyContinue |
+        Where-Object DisplayName -match '^DLP Downloader(?: [0-9]+\.[0-9]+\.[0-9]+)?$')
     if ($stableEntries.Count -ne 1 -or $entry.DisplayVersion -ne $expectedVersion -or
-        $entry.InstallLocation.TrimEnd('\') -ne $app -or (Test-Path -LiteralPath $betaKey)) {
+        $entry.InstallLocation.TrimEnd('\') -ne $app -or $betaKeys.Where({ Test-Path -LiteralPath $_ })) {
         throw "Identidade ou pasta inesperada para $expectedVersion."
     }
     if (-not (Test-Path -LiteralPath $link -PathType Leaf)) { throw 'Atalho ausente.' }
@@ -128,8 +128,10 @@ function Assert-SavedDestination($label) {
 }
 
 $uninstall = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall'
+$uninstall32 = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
 $stableKey = Join-Path $uninstall '{330DC7E6-C8B5-44AA-A38A-14D2DF57B4E1}_is1'
-$betaKey = Join-Path $uninstall '{2AFCE230-A591-4A7F-9829-10D3CFE58D03}_is1'
+$betaId = '{2AFCE230-A591-4A7F-9829-10D3CFE58D03}_is1'
+$betaKeys = @((Join-Path $uninstall $betaId), (Join-Path $uninstall32 $betaId))
 $link = Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'DLP Downloader\DLP Downloader.lnk'
 if (Test-Path -LiteralPath $stableKey) { throw 'A VM ja tem uma instalacao estavel.' }
 
