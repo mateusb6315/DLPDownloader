@@ -147,3 +147,42 @@ def test_fechar_durante_download_aguarda_cleanup_do_trabalhador(preparar, qtbot)
     qtbot.waitUntil(lambda: not janela.isVisible())
     assert janela.popup is None
     assert not list(Path(janela.destino.text()).iterdir())
+
+
+def test_inicio_duplicado_e_cancelamento_preservam_interface_e_limpam_parcial(
+    preparar, qtbot, tmp_path
+):
+    iniciou, cancelou, liberar = threading.Event(), threading.Event(), threading.Event()
+    pedidos = []
+
+    def baixar(pedido, cancelar, _progresso, _confirmar):
+        pedidos.append(pedido)
+        parcial = pedido.destino / "parcial"
+        parcial.touch()
+        iniciou.set()
+        try:
+            assert cancelar.wait(5)
+            cancelou.set()
+            assert liberar.wait(5)
+            raise Cancelado()
+        finally:
+            parcial.unlink()
+
+    janela, _ = preparar(baixar)
+    sucessos, erros = [], []
+    janela.exibir_sucesso = sucessos.append
+    janela.exibir_erro = erros.append
+    qtbot.mouseClick(janela.baixar, Qt.MouseButton.LeftButton)
+    try:
+        qtbot.waitUntil(iniciou.is_set)
+        janela.download_solicitado.emit("https://example.com/segundo", "mp4", None, str(tmp_path))
+        assert not janela.baixar.isEnabled()
+        qtbot.mouseClick(janela.popup.cancelar, Qt.MouseButton.LeftButton)
+        qtbot.waitUntil(cancelou.is_set)
+        assert not janela.baixar.isEnabled() and janela.popup is not None
+    finally:
+        liberar.set()
+        qtbot.waitUntil(janela.baixar.isEnabled)
+    assert [pedido.url for pedido in pedidos] == ["https://example.com/video"]
+    assert not list(tmp_path.iterdir())
+    assert janela.popup is None and not sucessos and not erros

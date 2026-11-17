@@ -1,4 +1,4 @@
-"""Compõe e inicia a aplicação desktop na arquitetura da raiz."""
+"""Compõe e inicia a aplicação desktop."""
 
 import logging
 import os

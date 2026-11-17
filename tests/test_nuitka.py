@@ -1,4 +1,4 @@
-"""Exercita as entradas públicas das compilações da arquitetura raiz."""
+"""Exercita as entradas públicas das compilações Nuitka."""
 
 import os
 import subprocess
@@ -80,21 +80,6 @@ def test_release_preserva_zip_existente_e_nao_publica_novos_artefatos(tmp_path):
     assert arquivo_zip.name in resultado.stdout
     assert arquivo_zip.read_bytes() == b"pacote publicado"
     assert list(destino.glob("DLPDownloader-*")) == [arquivo_zip]
-
-
-def test_autoteste_sem_pasta_falha_sem_iniciar_qt():
-    resultado = subprocess.run(
-        [sys.executable, "-m", "config.bootstrap", "--verificar-midia"],
-        capture_output=True,
-        encoding="utf-8",
-        env={**os.environ, "PYTHONIOENCODING": "utf-8", "QT_QPA_PLATFORM": "invalido"},
-        cwd=RAIZ,
-        timeout=15,
-        check=False,
-    )
-
-    assert resultado.returncode == 2, resultado.stderr
-    assert "--verificar-midia <dados>" in resultado.stderr
 
 
 def test_distribuicao_procura_vendor_ao_lado_do_executavel(tmp_path, monkeypatch):

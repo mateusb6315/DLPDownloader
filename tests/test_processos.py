@@ -6,8 +6,8 @@ import threading
 
 import pytest
 
-from dlpdownloader.modelos.erros import Cancelado, ErroDownload
-from dlpdownloader.servicos.processos import executar
+from services._infra.processos import executar
+from services._models.erros import Cancelado, ErroDownload
 
 
 def test_saida_fragmentada_recomposta_e_sem_deadlock():

@@ -12,20 +12,10 @@ def main() -> int:
     argparse.ArgumentParser(description=__doc__).parse_args()
     ambiente = {**os.environ, "QT_QPA_PLATFORM": "offscreen"}
     raiz = Path(__file__).resolve().parents[1]
+    fontes = ["config", "ui", "services", "scripts", "tests", "main.py", "dlpdownloader.py"]
     comandos = [
-        ["ruff", "check", "src", "config", "ui", "services", "scripts", "tests", "main.py"],
-        [
-            "ruff",
-            "format",
-            "--check",
-            "src",
-            "config",
-            "ui",
-            "services",
-            "scripts",
-            "tests",
-            "main.py",
-        ],
+        ["ruff", "check", *fontes],
+        ["ruff", "format", "--check", *fontes],
         ["pytest", "-q", "-m", "not externo and not interface_windows"],
     ]
     for comando in comandos:

@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from dlpdownloader.modelos.progresso import interpretar_progresso, numero
+from services._models.progresso import interpretar_progresso, numero
 
 
 def linha(progresso, faixa="299", etapa="baixando"):
