@@ -22,7 +22,8 @@ clara, acessíveis também a colaboradores iniciantes.
   `Trabalhador` e sinais. Apenas a thread da interface atualiza widgets. A consulta de
   releases em `config/update_tasks.py` tem trabalhador próprio, funciona durante o
   download e aguarda o fim do download e dos diálogos modais para apresentar a oferta
-  automática. O fechamento espera as tarefas ativas, inclusive `QThread.finished`.
+  automática. Uma consulta manual cancelada ou com erro preserva essa oferta pendente.
+  O fechamento espera as tarefas ativas, inclusive `QThread.finished`.
 - `services/downloader.py` recebe pedido imutável, evento de cancelamento e callbacks
   de progresso e confirmação. Os adaptadores `services/yt_dlp.py` e `services/ffmpeg.py`
   são independentes. Use FFmpeg diretamente nos pedidos com bitrate explícito.

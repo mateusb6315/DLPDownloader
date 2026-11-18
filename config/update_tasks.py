@@ -30,6 +30,7 @@ class ConsultaAtualizacoes(QObject):
         self._manual = False
         self._resultado = None
         self._erro = ""
+        self._oferta_automatica = None
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.setInterval(200)
@@ -74,6 +75,7 @@ class ConsultaAtualizacoes(QObject):
         """Retorna se a janela já pode ser fechada."""
         self._encerrando = True
         self._timer.stop()
+        self._oferta_automatica = None
         self.janela.definir_consulta_disponivel(False)
         self.janela.definir_consulta_cancelando()
         self.cancelar()
@@ -97,26 +99,43 @@ class ConsultaAtualizacoes(QObject):
             self.encerrada.emit()
             return
         self.janela.definir_consulta_disponivel(True)
-        if not self._cancelamento.is_set():
-            self._apresentar()
+        if self._cancelamento.is_set():
+            self._resultado = None
+            self._erro = ""
+        elif not self._manual:
+            if self._erro:
+                LOGGER.warning("Consulta automática de atualização falhou.")
+            if self._resultado and self._resultado.disponivel:
+                self._oferta_automatica = self._resultado
+            self._resultado = None
+            self._erro = ""
+        elif self._resultado is not None:
+            self._oferta_automatica = None
+        self._apresentar()
 
     @pyqtSlot()
     def _apresentar(self) -> None:
-        resultado = self._resultado
-        if not self._manual and not (resultado and resultado.disponivel):
-            if self._erro:
-                LOGGER.warning("Consulta automática de atualização falhou.")
+        if self._encerrando or self._thread is not None:
             return
-        if self._encerrando:
+        manual = self._resultado is not None or bool(self._erro)
+        if not manual and self._oferta_automatica is None:
             return
         if QApplication.activeModalWidget() is not None or (
-            not self._manual and not self.pode_oferecer_automaticamente()
+            not manual and not self.pode_oferecer_automaticamente()
         ):
             self._timer.start()
             return
+        resultado, erro = self._resultado, self._erro
         self._resultado = None
-        if self._erro:
-            self.janela.exibir_erro(self._erro)
+        self._erro = ""
+        if not manual:
+            oferta = self._oferta_automatica
+            self._oferta_automatica = None
+            self._oferecer(oferta)
+        elif erro:
+            self.janela.exibir_erro(erro)
+            if self._oferta_automatica is not None:
+                self._timer.start()
         elif resultado and resultado.disponivel:
             self._oferecer(resultado)
         elif resultado:

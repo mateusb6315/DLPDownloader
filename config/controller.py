@@ -29,7 +29,6 @@ class ControladorDownload(QObject):
         verificar,
         criar_servico,
         reparo_disponivel=None,
-        encerrar_tarefas=lambda: True,
         consultar_atualizacao=None,
         abrir_release=lambda _url: False,
     ):
@@ -42,7 +41,6 @@ class ControladorDownload(QObject):
         self.criar_servico = criar_servico
         self.reparo_disponivel = reparo_disponivel
         self.reparo_solicitado = False
-        self.encerrar_tarefas = encerrar_tarefas
         self.estado = Estado.VERIFICANDO
         self.servico = None
         self.thread = None
@@ -293,5 +291,5 @@ class ControladorDownload(QObject):
         self._fechar = True
         self.janela.definir_ocupada(True)
         consulta_encerrada = self._atualizacoes is None or self._atualizacoes.encerrar()
-        if self.thread is None and consulta_encerrada and self.encerrar_tarefas():
+        if self.thread is None and consulta_encerrada:
             self.janela.permitir_fechamento()

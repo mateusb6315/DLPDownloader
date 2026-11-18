@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import pytest
 
 from config import paths
+from scripts import _distribuicao_nuitka, release
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -80,6 +81,59 @@ def test_release_preserva_zip_existente_e_nao_publica_novos_artefatos(tmp_path):
     assert arquivo_zip.name in resultado.stdout
     assert arquivo_zip.read_bytes() == b"pacote publicado"
     assert list(destino.glob("DLPDownloader-*")) == [arquivo_zip]
+
+
+@pytest.mark.parametrize("falha_na_reversao", [False, True])
+def test_release_reverte_todos_os_artefatos_possiveis(
+    tmp_path, monkeypatch, capsys, falha_na_reversao
+):
+    base = "DLPDownloader-1.3.2"
+    instalador = f"{base}-setup.exe"
+    arquivo_retido = tmp_path / f"{base}.zip"
+
+    def compilar(staging, _versao, **_opcoes):
+        pacote = staging / base
+        pacote.mkdir()
+        return pacote
+
+    def executar(comando, *, cwd=None, env=None):
+        if comando[1] == "a":
+            Path(comando[2]).write_bytes(b"arquivo")
+        elif env is not None:
+            saida = Path(env["DLP_SAIDA"].replace("{{", "{"))
+            (saida / "instalador.exe").write_bytes(b"instalador")
+
+    renomear = Path.rename
+
+    def renomear_com_falha(origem, destino):
+        if destino == tmp_path / instalador:
+            raise PermissionError("Instalador bloqueado ao publicar.")
+        if falha_na_reversao and origem == arquivo_retido:
+            raise PermissionError("ZIP bloqueado ao reverter.")
+        return renomear(origem, destino)
+
+    monkeypatch.setattr(_distribuicao_nuitka, "compilar_nuitka", compilar)
+    monkeypatch.setattr(_distribuicao_nuitka, "localizar_ferramenta", lambda nome, _: Path(nome))
+    monkeypatch.setattr(_distribuicao_nuitka, "executar_etapa", executar)
+    monkeypatch.setattr(Path, "rename", renomear_com_falha)
+
+    assert release.main(["--destino", str(tmp_path), "--versao", "1.3.2", "--zip"]) == 1
+    assert set(tmp_path.glob("DLPDownloader-*")) == (
+        {arquivo_retido} if falha_na_reversao else set()
+    )
+    saida = capsys.readouterr().out
+    assert "Instalador bloqueado ao publicar." in saida
+    if falha_na_reversao:
+        (staging,) = tmp_path.glob(".nuitka-*")
+        assert str(staging) in saida
+        assert str(arquivo_retido) in saida
+        assert "ZIP bloqueado ao reverter." in saida
+        assert (staging / base).is_dir()
+        assert (staging / f"{base}.7z").read_bytes() == b"arquivo"
+        assert (staging / instalador).read_bytes() == b"instalador"
+        assert arquivo_retido.read_bytes() == b"arquivo"
+    else:
+        assert not list(tmp_path.glob(".nuitka-*"))
 
 
 def test_distribuicao_procura_vendor_ao_lado_do_executavel(tmp_path, monkeypatch):

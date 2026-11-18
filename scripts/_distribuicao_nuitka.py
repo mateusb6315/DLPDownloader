@@ -2,12 +2,17 @@
 
 import os
 import tempfile
+from contextlib import ExitStack
 from pathlib import Path
 
 from scripts._artefatos import comando_instalador, executar_etapa, localizar_ferramenta
 from scripts._nuitka_build import compilar_nuitka
 from scripts.comum import RAIZ, bloqueio, status, validar_nome
 from scripts.versao_build import versao_base
+
+
+class _ErroReversaoPublicacao(RuntimeError):
+    """A publicação falhou e ao menos um artefato permanece no destino."""
 
 
 def _localizar_compactador_e_instalador() -> tuple[Path, Path]:
@@ -20,14 +25,28 @@ def _localizar_compactador_e_instalador() -> tuple[Path, Path]:
     return sete_zip, iscc
 
 
-def _promover(artefatos: tuple[Path, ...], destino: Path) -> None:
+def _promover(artefatos: tuple[Path, ...], destino: Path, staging: Path) -> None:
     publicados = []
     try:
         for artefato in artefatos:
             publicados.append((artefato, artefato.rename(destino / artefato.name)))
-    except BaseException:
+    except BaseException as erro_publicacao:
+        falhas = []
         for origem, final in reversed(publicados):
-            final.rename(origem)
+            try:
+                final.rename(origem)
+            except (OSError, KeyboardInterrupt) as erro_reversao:
+                falhas.append((final, erro_reversao))
+        if falhas:
+            detalhes = "\n".join(f"- {final}: {erro}" for final, erro in falhas)
+            raise _ErroReversaoPublicacao(
+                f"Falha ao publicar: {erro_publicacao!s}\n"
+                f"Artefatos preservados em {staging}. Revise os itens que ficaram no destino:\n"
+                f"{detalhes}"
+            ) from BaseExceptionGroup(
+                "Falhas de publicação e reversão",
+                [erro_publicacao, *(erro for _, erro in falhas)],
+            )
         raise
 
 
@@ -54,8 +73,10 @@ def gerar_distribuicao(
             if (destino / nome).exists():
                 raise FileExistsError(f"Já existe um artefato com esse nome: {destino / nome}")
         sete_zip, iscc = _localizar_compactador_e_instalador()
-        with tempfile.TemporaryDirectory(prefix=".nuitka-", dir=destino) as pasta:
-            staging = Path(pasta)
+        with ExitStack() as limpeza:
+            pasta = tempfile.TemporaryDirectory(prefix=".nuitka-", dir=destino, delete=False)
+            staging = Path(pasta.name)
+            limpeza.callback(pasta.cleanup)
             pacote = compilar_nuitka(
                 staging, versao, beta=beta, baixar_compilador=baixar_compilador
             )
@@ -73,6 +94,10 @@ def gerar_distribuicao(
             for caminho in (*arquivos, instalador):
                 if not caminho.is_file() or caminho.stat().st_size == 0:
                     raise RuntimeError(f"A ferramenta não gerou um arquivo válido: {caminho.name}")
-            _promover((pacote, *arquivos, instalador), destino)
+            try:
+                _promover((pacote, *arquivos, instalador), destino, staging)
+            except _ErroReversaoPublicacao:
+                limpeza.pop_all()
+                raise
     status(f"Pacote, {'7z, ZIP' if criar_zip else '7z'} e instalador disponíveis em {destino}.")
     return destino / base
