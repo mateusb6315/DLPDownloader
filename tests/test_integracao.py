@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtTest import QTest
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtWidgets import QApplication, QFileDialog, QLineEdit, QMessageBox
 
 from config.bootstrap import criar_aplicacao
 from services._infra.dependencias import localizar
@@ -106,12 +106,59 @@ def solicitar_download(qtbot, janela, url):
     qtbot.mouseClick(janela.baixar, Qt.MouseButton.LeftButton)
 
 
-def test_baixa_video_pela_janela_e_recusa_substituir(aplicacao, midia_gui, qtbot):
+def selecionar_pasta(qapp, qtbot, janela, nome):
+    """Digita no seletor de diretórios Qt enquanto a janela usa o plugin Windows."""
+    atributo = Qt.ApplicationAttribute.AA_DontUseNativeDialogs
+    anterior = qapp.testAttribute(atributo)
+    busca, limite = QTimer(), QTimer()
+    limite.setSingleShot(True)
+
+    def responder():
+        dialogo = QApplication.activeModalWidget()
+        if isinstance(dialogo, QFileDialog):
+            entrada = dialogo.findChild(QLineEdit, "fileNameEdit")
+            if entrada is not None:
+                busca.stop()
+                entrada.setFocus()
+                qtbot.keyClick(entrada, Qt.Key.Key_A, modifier=Qt.KeyboardModifier.ControlModifier)
+                qtbot.keyClicks(entrada, nome)
+                qtbot.keyClick(entrada, Qt.Key.Key_Return)
+
+    def fechar_seletor():
+        dialogo = QApplication.activeModalWidget()
+        if isinstance(dialogo, QFileDialog):
+            dialogo.reject()
+
+    busca.timeout.connect(responder)
+    limite.timeout.connect(fechar_seletor)
+    qapp.setAttribute(atributo)
+    busca.start(20)
+    limite.start(5000)
+    try:
+        qtbot.mouseClick(janela.escolher, Qt.MouseButton.LeftButton)
+    finally:
+        busca.stop()
+        limite.stop()
+        qapp.setAttribute(atributo, anterior)
+
+
+def test_baixa_video_com_progresso_e_confirma_substituicao(aplicacao, midia_gui, qtbot):
     janela, destino, _ = aplicacao
+    progresso_visivel = []
+
+    def registrar(valor):
+        popup = janela.popup
+        if popup.isVisible() and popup.barra.maximum() == 100:
+            progresso_visivel.append(valor)
+
     with responder_caixa(qtbot, "Download concluído"):
         solicitar_download(qtbot, janela, midia_gui)
+        assert janela.popup.isVisible()
+        janela.popup.barra.valueChanged.connect(registrar)
     qtbot.waitUntil(janela.baixar.isEnabled)
     resultado = destino / "fonte [fonte].mp4"
+    assert any(0 < valor <= 100 for valor in progresso_visivel)
+    assert janela.popup is None
     assert resultado.stat().st_size > 0
     resultado.write_bytes(b"arquivo existente")
 
@@ -122,16 +169,29 @@ def test_baixa_video_pela_janela_e_recusa_substituir(aplicacao, midia_gui, qtbot
     assert list(destino.iterdir()) == [resultado]
     assert janela.status.text() == "O arquivo existente foi mantido."
 
+    with (
+        responder_caixa(qtbot, "Download concluído"),
+        responder_caixa(qtbot, "O arquivo já existe", papel=QMessageBox.ButtonRole.YesRole),
+    ):
+        solicitar_download(qtbot, janela, midia_gui)
+    qtbot.waitUntil(janela.baixar.isEnabled)
+    assert resultado.read_bytes() != b"arquivo existente"
+    assert list(destino.iterdir()) == [resultado]
 
-def test_baixa_audio_no_destino_restaurado(midia_gui, janela_windows, qapp, qtbot, tmp_path):
-    dados = tmp_path / "dados"
-    destino_padrao = tmp_path / "outro"
-    destino = tmp_path / "audio"
+
+def test_baixa_audio_no_destino_escolhido_e_restaurado(
+    aplicacao, midia_gui, janela_windows, qapp, qtbot
+):
+    primeira_janela, destino_padrao, dados = aplicacao
+    destino = destino_padrao / "audio"
     destino.mkdir()
-    dados.mkdir()
-    (dados / "config.json").write_text(
-        json.dumps({"versao": 1, "diretorio": str(destino)}), encoding="utf-8"
+    selecionar_pasta(qapp, qtbot, primeira_janela, destino.name)
+    assert Path(primeira_janela.destino.text()) == destino
+    assert json.loads((dados / "config.json").read_text(encoding="utf-8"))["diretorio"] == str(
+        destino
     )
+    primeira_janela.close()
+    qtbot.waitUntil(lambda: not primeira_janela.isVisible())
     janela, controlador = criar_aplicacao(
         qapp, raiz=RAIZ, dados=dados, destino_padrao=destino_padrao
     )

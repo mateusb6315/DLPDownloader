@@ -55,10 +55,13 @@ e o estado PRONTO em dados isolados. Depois, o executável processa os oito
 perfis de mídia sintética em localhost. O reparador valida seus recursos
 incorporados com `--verificar-empacotamento`.
 
-A pasta portátil, o 7z e o instalador são publicados como conjunto após validação.
-O ZIP da release entra no mesmo conjunto quando solicitado. Os nomes incluem a
-versão informada. O script preserva artefatos já existentes. Distribua a pasta
-portátil inteira para manter os arquivos Qt, as licenças e o `vendor`.
+A pasta portátil, o 7z, o instalador e o ZIP opcional são movidos para o destino
+após validação. Os nomes incluem a versão informada. O script preserva artefatos
+já existentes. Se a publicação falhar, o script tenta reverter cada movimentação
+concluída. Se alguma reversão falhar, a mensagem indica os itens que ficaram no
+destino e o caminho da pasta `.nuitka-*` preservada para recuperação.
+Distribua a pasta portátil inteira para manter os arquivos Qt, as licenças e o
+`vendor`.
 
 ### Instaladores
 

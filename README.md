@@ -110,6 +110,8 @@ no terminal e confira a conexão e a permissão de escrita antes de tentar novam
 Abra **Opções → Procurar atualizações**, no canto superior direito. Se houver uma
 release estável mais recente, **Baixar agora** abre a página da versão no navegador;
 **Deixar para depois** fecha o aviso. O aplicativo também faz essa consulta ao iniciar.
+A oferta automática aguarda o fim do download e o fechamento dos diálogos. Cancelar
+uma consulta manual ou receber um erro nela preserva a oferta automática pendente.
 A consulta exige internet e não instala nem substitui arquivos automaticamente.
 
 Para atualizar, baixe o novo pacote, feche o aplicativo e extraia a pasta completa da
@@ -298,6 +300,7 @@ $env:QT_QPA_PLATFORM = "windows"
 .\.venv\Scripts\python.exe -m pytest -q -m interface_windows
 ```
 Os testes focados do mediador usam Qt offscreen na suíte padrão.
+O teste de escolha de destino usa o seletor de pastas Qt com o plugin Windows ativo.
 
 Depois de preparar `vendor/`, execute a integração real:
 

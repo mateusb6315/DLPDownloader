@@ -7,12 +7,12 @@ from io import BytesIO
 from types import SimpleNamespace
 
 import pytest
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QThread
 
 from config.controller import ControladorDownload
 from config.paths import caminho_icone
 from services._models.atualizacoes import ReleaseEstavel, ResultadoConsulta, VersaoDistribuicao
-from services._models.erros import Cancelado, ErroAplicacao
+from services._models.erros import Cancelado, ErroAplicacao, ErroDependencia
 from services.updater import verificar_atualizacao
 from ui.window import JanelaPrincipal
 
@@ -206,6 +206,62 @@ def test_cancelar_consulta_manual_descarta_resultado_e_reabilita_menu(montar, qt
     assert janela.consulta is None and avisos == []
 
 
+@pytest.mark.parametrize("desfecho_manual", ["cancelada", "falhou", "atualizado"])
+def test_oferta_automatica_apos_consulta_manual(montar, qtbot, desfecho_manual):
+    consultas = iter(("automatica", "manual"))
+    liberar_automatica = threading.Event()
+    iniciou_manual, liberar_manual = threading.Event(), threading.Event()
+    iniciou_download, liberar_download = threading.Event(), threading.Event()
+
+    def consultar(_cancelamento):
+        if next(consultas) == "automatica":
+            assert liberar_automatica.wait(5)
+            return ResultadoConsulta("1.3.1", ReleaseEstavel("1.10.0", URL_RELEASE))
+        iniciou_manual.set()
+        assert liberar_manual.wait(5)
+        if desfecho_manual == "falhou":
+            raise ErroAplicacao("Falha na consulta manual.")
+        return ResultadoConsulta("1.3.1", None)
+
+    def baixar(_pedido, _cancelamento, _progresso, _confirmar):
+        iniciou_download.set()
+        assert liberar_download.wait(5)
+        raise Cancelado()
+
+    ofertas, erros, avisos = [], [], []
+    janela = montar(consultar, lambda _url: True, baixar)
+    janela.oferecer_atualizacao = lambda local, remota: ofertas.append((local, remota)) or False
+    janela.exibir_erro = erros.append
+    janela.informar_atualizado = avisos.append
+    qtbot.keyClicks(janela.url, "https://example.com/video")
+    qtbot.mouseClick(janela.baixar, Qt.MouseButton.LeftButton)
+    try:
+        qtbot.waitUntil(iniciou_download.is_set)
+        liberar_automatica.set()
+        qtbot.waitUntil(janela.acao_atualizar.isEnabled)
+        assert ofertas == []
+        janela.acao_atualizar.trigger()
+        qtbot.waitUntil(iniciou_manual.is_set)
+        if desfecho_manual == "cancelada":
+            qtbot.mouseClick(janela.consulta.cancelar, Qt.MouseButton.LeftButton)
+        liberar_manual.set()
+        qtbot.waitUntil(janela.acao_atualizar.isEnabled)
+        assert ofertas == []
+        assert erros == (["Falha na consulta manual."] if desfecho_manual == "falhou" else [])
+        assert avisos == (["1.3.1"] if desfecho_manual == "atualizado" else [])
+    finally:
+        liberar_automatica.set()
+        liberar_manual.set()
+        liberar_download.set()
+
+    qtbot.waitUntil(janela.baixar.isEnabled)
+    if desfecho_manual == "atualizado":
+        qtbot.wait(500)
+        assert ofertas == []
+    else:
+        qtbot.waitUntil(lambda: ofertas == [("1.3.1", "1.10.0")])
+
+
 def test_fechar_aguarda_download_e_consulta_cancelados(montar, qtbot):
     consulta_cancelada = threading.Event()
     download_iniciado = threading.Event()
@@ -242,6 +298,55 @@ def test_fechar_aguarda_download_e_consulta_cancelados(montar, qtbot):
         liberar_download.set()
         liberar_consulta.set()
         qtbot.waitUntil(lambda: not janela.isVisible())
+
+
+def test_aceitar_reparo_aguarda_consulta_antes_de_fechar(qtbot, tmp_path):
+    iniciou, cancelada, liberar, terminou = (threading.Event() for _ in range(4))
+
+    def consultar(cancelamento):
+        QThread.currentThread().finished.connect(terminou.set, Qt.ConnectionType.DirectConnection)
+        iniciou.set()
+        assert cancelamento.wait(5)
+        cancelada.set()
+        assert liberar.wait(5)
+        return ResultadoConsulta("1.3.1", ReleaseEstavel("1.10.0", URL_RELEASE))
+
+    def verificar(_cancelamento):
+        assert iniciou.wait(5)
+        raise ErroDependencia("Ferramenta ausente.")
+
+    janela = JanelaPrincipal(caminho_icone(), (("mp4", "Vídeo MP4", (), ""),))
+    qtbot.addWidget(janela)
+    janela.perguntar_reparo = lambda: True
+    janela.oferecer_atualizacao = lambda *_args: pytest.fail("O aplicativo está fechando.")
+    fechamentos = []
+    permitir_fechamento = janela.permitir_fechamento
+
+    def fechar():
+        fechamentos.append(terminou.is_set())
+        permitir_fechamento()
+
+    janela.permitir_fechamento = fechar
+    controlador = ControladorDownload(
+        janela,
+        carregar_preferencias=lambda: (tmp_path, ""),
+        salvar_preferencias=lambda _destino: None,
+        validar_destino=lambda _destino: None,
+        verificar=verificar,
+        criar_servico=lambda _ferramentas: pytest.fail("Ferramenta ausente."),
+        reparo_disponivel=lambda: True,
+        consultar_atualizacao=consultar,
+    )
+    janela.show()
+    controlador.inicializar()
+    try:
+        qtbot.waitUntil(cancelada.is_set)
+        assert controlador.reparo_solicitado and janela.isVisible()
+        assert not terminou.is_set() and fechamentos == []
+    finally:
+        liberar.set()
+        qtbot.waitUntil(lambda: not janela.isVisible())
+    assert fechamentos == [True]
 
 
 @pytest.mark.parametrize(
