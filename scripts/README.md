@@ -1,50 +1,73 @@
 # Scripts do projeto
 
-Scripts implementados para desenvolvimento e distribuição. Execute a partir de um
-clone com o pacote instalado; cada script possui `--help`.
-
 | Arquivo | Responsabilidade |
 | --- | --- |
 | `preparar_ambiente.py` | Validar Python e executar `poetry install` |
-| `preparar_ferramentas.py` | Obter e verificar yt-dlp, FFmpeg/FFprobe e Deno do manifesto |
-| `verificar.py` | Executar lint, testes e verificações de arquitetura |
-| `compilar.py` | Publicar distribuição Windows completa, sem `.spec` como entrada |
-| `compilar_beta.py` | Compilar pacote local de desenvolvimento sem relatório de produção |
-| `compilarfull.py` | Gerar pacote de produção, arquivo 7z e instalador |
-| `betafull.py` | Gerar pacote beta, arquivo 7z e instalador local |
-| `compilar_repair.py` | Construir o reparador portátil com manifesto incorporado |
-| `repair.py` | Reparar as ferramentas do pacote distribuído |
-| `validar_pacote.py` | Confirmar inicialização do executável com PATH e dados isolados |
-| `git_workflow.py` | Comandos explícitos de status, branch, sincronização, commit, push, PR e merge |
+| `preparar_ferramentas.py` | Obter e verificar yt-dlp, FFmpeg/FFprobe e Deno |
+| `verificar.py` | Executar lint, verificação de formatação e a suíte padrão |
+| `nuitka.py` | Selecionar o canal de compilação |
+| `beta.py` | Gerar a pasta portátil, o 7z e o instalador beta |
+| `release.py` | Gerar a pasta portátil, o 7z e o instalador estável, com ZIP opcional |
+| `validar_pacote.py` | Validar a inicialização e processar mídia local pelo executável distribuído |
+| `git_workflow.py` | Executar operações explícitas de Git e GitHub |
 
-Cada script possui mensagens claras e retorno diferente de zero em falha.
-Comandos Git/GitHub devem indicar arquivos e ações explicitamente, interromper em
-conflitos e respeitar proteções do repositório.
+Os scripts devolvem código diferente de zero em caso de falha. Use `--help` nas
+entradas de linha de comando. Para preparar o checkout, siga o
+[README do projeto](../README.md#preparar-e-executar-o-código-fonte).
 
-`comum.py` contém auxiliares compartilhadas. Os testes usam diretórios temporários e
-executores falsos; build real e integração de mídia são verificações separadas.
-Instalação, exemplos e detalhes estão no [README do projeto](../README.md).
+## Compilação com Nuitka
 
-O compilador aceita `--versao X.Y.Z`, `--zip` e `--destino`. Mantém `onedir`, organiza os
-arquivos internos em `lib`, seleciona `vendor` pelo manifesto e gera relatório de tamanho.
-Valida inicialização e mídia sintética pelo executável congelado. A preparação instala
-EXEs/DLLs como conjuntos completos, com rollback e validação em staging antes da troca.
+Prepare o grupo de desenvolvimento do Poetry e as ferramentas portáteis. Em Windows
+x64, instale o MSVC x64 e o SDK do Windows pela carga de trabalho **Desenvolvimento para
+desktop com C++**. Instale também 7-Zip e Inno Setup. A busca usa o PATH e os caminhos
+padrão de 7-Zip e Inno Setup 7. A beta também exige UPX no PATH.
 
-Para testes locais, execute `python scripts/compilar_beta.py --versao 1.3.0_beta1`.
-O nome é livre, observadas as regras de nomes de arquivos do Windows; a convenção é
-`<próxima versão>_beta<número>`. A saída padrão é `releases/beta/`, separada da produção.
-O script aceita `--destino` e `--zip`, valida o pacote e não gera relatório nem histórico.
-É destinado a desenvolvimento local e não é executado pelo fluxo do GitHub.
+Execute `poetry run python scripts/nuitka.py` e escolha **1 — Beta** ou **2 — Release**.
+As entradas diretas aceitam argumentos para automação:
 
-Para criar também um arquivo 7z e um instalador, execute
-`python scripts/betafull.py --versao 1.3.0_beta1` ou
-`python scripts/compilarfull.py --versao 1.3.0`. Ambos aceitam `--destino`,
-exigem 7-Zip e Inno Setup 6 instalados no PATH ou nos locais padrão e reutilizam
-o pacote validado pelo compilador correspondente. Os arquivos `.7z` e `-setup.exe`
-ficam ao lado da pasta; se uma etapa falhar, os artefatos já publicados são preservados.
-O instalador exige administrador, cria atalho no menu Iniciar e oferece atalho na área
-de trabalho. Beta e produção têm instalações independentes. A pasta instalada permite
-modificação por usuários locais para que o reparador funcione; portanto, outros usuários
-locais também podem alterar os executáveis. Atualizações substituem arquivos incluídos,
-mas não removem arquivos obsoletos de versões anteriores. Preferências permanecem em
-`%LOCALAPPDATA%` e não são removidas pelo desinstalador.
+```powershell
+poetry run python scripts/beta.py --versao 1.3.2-beta3
+poetry run python scripts/release.py --versao 1.3.2 --zip
+```
+
+A beta aceita nomes válidos para arquivos Windows. Uma beta com base `X.Y.Z`
+incorpora essa versão para a consulta de atualizações. Outros nomes usam a versão
+de `pyproject.toml`. A release exige `X.Y.Z` e usa o canal estável.
+Omitir `--versao` abre a pergunta interativa do canal. O build não edita
+`pyproject.toml`.
+
+O destino padrão é `releases/beta/` para beta e `releases/` para release.
+`--destino` escolhe outra pasta e `--baixar-compilador` permite usar Zig
+com download pelo Nuitka. A CI chama `release.py` com versão explícita e
+`--zip` para publicar o ZIP como artefato.
+
+### Pacote e validação
+
+O build usa Nuitka standalone para a aplicação e onefile para o reparador.
+Na beta, o UPX comprime os dois executáveis gerados e tenta reduzir as extensões
+elegíveis do PyQt6. Extensões assinadas, incompatíveis ou sem ganho de tamanho
+são preservadas. O compilador usa `main.py`, inclui o ícone PNG de `ui/resources`
+e os plugins Qt de plataforma. O reparador incorpora o manifesto de ferramentas
+e o aviso de licenças.
+
+O staging verifica a versão, o ícone, a inicialização com o plugin Qt Windows
+e o estado PRONTO em dados isolados. Depois, o executável processa os oito
+perfis de mídia sintética em localhost. O reparador valida seus recursos
+incorporados com `--verificar-empacotamento`.
+
+A pasta portátil, o 7z, o instalador e o ZIP opcional são movidos para o destino
+após validação. Os nomes incluem a versão informada. O script preserva artefatos
+já existentes. Se a publicação falhar, o script tenta reverter cada movimentação
+concluída. Se alguma reversão falhar, a mensagem indica os itens que ficaram no
+destino e o caminho da pasta `.nuitka-*` preservada para recuperação.
+Distribua a pasta portátil inteira para manter os arquivos Qt, as licenças e o
+`vendor`.
+
+### Instaladores
+
+O instalador exige administrador, cria atalho no menu Iniciar e oferece atalho na
+área de trabalho. Beta e release têm identidades e pastas independentes. O instalador
+estável reaproveita a pasta registrada pela instalação anterior. Ambos permitem escrita
+por usuários locais na pasta instalada para o reparador. Atualizações substituem
+arquivos incluídos e deixam os arquivos obsoletos na pasta. O desinstalador preserva
+as preferências em `%LOCALAPPDATA%`.

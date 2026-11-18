@@ -1,6 +1,6 @@
-"""Entrada do aplicativo; instale o pacote antes de executar."""
+"""Entrada direta do DLP Downloader."""
 
-from dlpdownloader.aplicacao import main
+from config.bootstrap import main
 
 if __name__ == "__main__":
     raise SystemExit(main())

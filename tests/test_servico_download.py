@@ -7,8 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from dlpdownloader.modelos.erros import Cancelado, ErroDownload, SubstituicaoRecusada
-from dlpdownloader.servicos.yt_dlp import ServicoDownload, montar_comando
+from services._models.erros import Cancelado, ErroDownload, SubstituicaoRecusada
+from services.downloader import ServicoDownload
+from services.yt_dlp import montar_comando
 
 
 def executor_falso(comandos):
@@ -84,8 +85,8 @@ def test_ausencia_de_resultado_nao_vira_sucesso(pedido, ferramentas):
     assert not list(pedido.destino.iterdir())
 
 
-def test_resultado_fora_do_staging_rejeitado(pedido, ferramentas, tmp_path):
-    externo = tmp_path / "externo.mp4"
+def test_resultado_fora_do_staging_rejeitado(pedido, ferramentas):
+    externo = pedido.destino / "externo.mp4"
     externo.write_bytes(b"x")
 
     def executar(comando, cancelar, receber):
@@ -94,6 +95,7 @@ def test_resultado_fora_do_staging_rejeitado(pedido, ferramentas, tmp_path):
     with pytest.raises(ErroDownload):
         ServicoDownload(ferramentas, executar).baixar(pedido, threading.Event(), lambda e: None)
     assert externo.read_bytes() == b"x"
+    assert list(pedido.destino.iterdir()) == [externo]
 
 
 def test_cancelamento_nao_publica(pedido, ferramentas):
